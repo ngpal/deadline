@@ -10,11 +10,18 @@ use std::path::PathBuf;
 struct Task {
     title: String,
     end: NaiveDate,
+
+    #[serde(default)]
+    autoclear: bool,
 }
 
 impl Task {
-    fn new(title: String, end: NaiveDate) -> Self {
-        Self { title, end }
+    fn new(title: String, end: NaiveDate, autoclear: bool) -> Self {
+        Self {
+            title,
+            end,
+            autoclear,
+        }
     }
 
     fn display(&self) {
@@ -42,7 +49,13 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    Add { title: String, end: String },
+    Add {
+        title: String,
+        end: String,
+
+        #[arg(long, short = 'c')]
+        autoclear: bool,
+    },
     View,
     Path,
 }
@@ -79,13 +92,17 @@ fn main() {
     let data_path = data_file_path();
 
     match cli.command {
-        Commands::Add { title, end } => {
+        Commands::Add {
+            title,
+            end,
+            autoclear,
+        } => {
             let date = NaiveDate::parse_from_str(&end, "%Y-%m-%d")
                 .expect("Invalid date format. Use YYYY-MM-DD");
 
             let mut tasks = load_tasks(&data_path);
 
-            let task = Task::new(title, date);
+            let task = Task::new(title, date, autoclear);
             tasks.push(task);
 
             save_tasks(&data_path, &tasks);
@@ -101,7 +118,27 @@ fn main() {
                 return;
             }
 
-            for task in tasks {
+            let today = Local::now().date_naive();
+
+            let visible_tasks: Vec<_> = tasks
+                .into_iter()
+                .filter(|task| {
+                    let days = (task.end - today).num_days();
+
+                    if task.autoclear && days < 0 {
+                        return false;
+                    }
+
+                    true
+                })
+                .collect();
+
+            if visible_tasks.is_empty() {
+                println!("No visible tasks.");
+                return;
+            }
+
+            for task in visible_tasks {
                 task.display();
             }
         }

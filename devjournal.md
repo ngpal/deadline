@@ -3,7 +3,13 @@
 - [x] add command
 - [x] view command
 - [x] store the deadlines in a file
-  - [ ] view storage file path
+  - [x] view storage file path
+- [x] autoclear
+- [ ] deleting tasks
+- [ ] completing tasks behind deadline
+- [ ] `view all` command should show all the tasks, ordered with deadline priority, and even completed tasks at the end
+- [ ] pushing deadlines
 - [ ] config file
   - [ ] config editing commands
-- [ ] config for colours
+  - [ ] config for colours
+  - [ ] config for what tasks to show in the view command
