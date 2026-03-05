@@ -18,7 +18,7 @@ cargo install --path deadline
 (Optional) Add the following lines to your  `.bashrc` or respective "run commands" file equivalent
 ```sh
 # now you can use `dl` instead of `deadline`
-alias dl = deadline
+alias dl='deadline'
 
 # prints all the tasks every time you open your terminal
 dl view
