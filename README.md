@@ -4,4 +4,4 @@ The idea is to have a CLI application through which you may
 - [ ] Optionally autoclear completed deadlines
 - [ ] Progress percentages you can update yourself or autoupdate with time
 
-Ideas/recommendations/bugfix requests are all welcome, contact me through [email](nandagopalnmenon@icloud.com)
+Ideas/recommendations/bugfix requests are all welcome, contact me via <nandagopalnmenon@icloud.com>
