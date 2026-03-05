@@ -2,7 +2,8 @@
 - [x] add deadlines
 - [x] add command
 - [x] view command
-- [ ] store the deadlines in a file
+- [x] store the deadlines in a file
+  - [ ] view storage file path
 - [ ] config file
   - [ ] config editing commands
 - [ ] config for colours
