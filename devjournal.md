@@ -3,3 +3,6 @@
 - [x] add command
 - [x] view command
 - [ ] store the deadlines in a file
+- [ ] config file
+  - [ ] config editing commands
+- [ ] config for colours
