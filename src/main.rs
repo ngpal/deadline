@@ -111,7 +111,7 @@ fn main() {
         }
 
         Commands::View => {
-            println!("{}", "Deadline\n".bold().underline());
+            println!("{}", "Deadline".bold().underline());
             let tasks = load_tasks(&data_path);
 
             if tasks.is_empty() {
