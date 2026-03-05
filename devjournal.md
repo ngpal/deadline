@@ -17,3 +17,5 @@
   - [ ] config editing commands
   - [ ] config for colours
   - [ ] config for what tasks to show in the view command
+  - [ ] config for how many tasks view shows by default
+- [ ] reccuring tasks
