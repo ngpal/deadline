@@ -120,7 +120,7 @@ fn main() {
 
             let today = Local::now().date_naive();
 
-            let visible_tasks: Vec<_> = tasks
+            let mut visible_tasks: Vec<_> = tasks
                 .into_iter()
                 .filter(|task| {
                     let days = (task.end - today).num_days();
@@ -138,6 +138,7 @@ fn main() {
                 return;
             }
 
+            visible_tasks.sort_by_key(|task| (task.end - Local::now().date_naive()).num_days());
             for task in visible_tasks {
                 task.display();
             }

@@ -7,8 +7,12 @@
 - [x] autoclear
 - [ ] deleting tasks
 - [ ] completing tasks behind deadline
+- [ ] indication while printing for autocomplete tasks
 - [ ] `view all` command should show all the tasks, ordered with deadline priority, and even completed tasks at the end
-- [ ] pushing deadlines
+- [ ] editing tasks
+  - [ ] pushing deadlines
+  - [ ] changing autoclear status
+  - [ ] changing complete status
 - [ ] config file
   - [ ] config editing commands
   - [ ] config for colours
