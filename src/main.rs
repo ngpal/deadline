@@ -17,6 +17,9 @@ struct Task {
 
     #[serde(default)]
     hash: Option<u32>,
+
+    #[serde(default)]
+    completed: bool,
 }
 
 impl Task {
@@ -25,6 +28,7 @@ impl Task {
             title,
             end,
             autoclear,
+            completed: false,
             hash: None,
         };
 
