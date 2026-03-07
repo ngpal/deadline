@@ -4,24 +4,32 @@ use colored::Colorize;
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::path::PathBuf;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Hash)]
 struct Task {
     title: String,
     end: NaiveDate,
 
     #[serde(default)]
     autoclear: bool,
+
+    #[serde(default)]
+    hash: Option<u32>,
 }
 
 impl Task {
     fn new(title: String, end: NaiveDate, autoclear: bool) -> Self {
-        Self {
+        let mut s = Self {
             title,
             end,
             autoclear,
-        }
+            hash: None,
+        };
+
+        s.hash = Some(s.get_id());
+        return s;
     }
 
     fn display(&self) {
@@ -35,7 +43,22 @@ impl Task {
             days.to_string().green()
         };
 
-        println!("{:>3} days - {}", days_colored, self.title);
+        println!(
+            "{} {:>3} days - {}",
+            format!("[{:0>6X}]", self.get_id()).cyan(),
+            days_colored,
+            self.title
+        );
+    }
+
+    fn get_id(&self) -> u32 {
+        if let Some(id) = self.hash {
+            id
+        } else {
+            let mut hasher = DefaultHasher::new();
+            self.hash(&mut hasher);
+            (hasher.finish() & 0x00FFFFFF) as u32
+        }
     }
 }
 
