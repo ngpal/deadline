@@ -64,6 +64,14 @@ impl Task {
             (hasher.finish() & 0x00FFFFFF) as u32
         }
     }
+
+    fn ensure_hash(&mut self) {
+        if self.hash.is_none() {
+            let mut hasher = DefaultHasher::new();
+            self.hash(&mut hasher);
+            self.hash = Some((hasher.finish() & 0x00FFFFFF) as u32);
+        }
+    }
 }
 
 #[derive(Parser)]
@@ -108,9 +116,12 @@ fn load_tasks(path: &PathBuf) -> Vec<Task> {
     serde_json::from_str(&content).unwrap_or_default()
 }
 
-fn save_tasks(path: &PathBuf, tasks: &[Task]) {
-    let json = serde_json::to_string_pretty(tasks).expect("Could not serialize tasks");
+fn save_tasks(path: &PathBuf, tasks: &mut [Task]) {
+    for task in tasks.iter_mut() {
+        task.ensure_hash();
+    }
 
+    let json = serde_json::to_string_pretty(tasks).expect("Could not serialize tasks");
     fs::write(path, json).expect("Could not write tasks file");
 }
 
@@ -132,7 +143,7 @@ fn main() {
             let task = Task::new(title, date, autoclear);
             tasks.push(task);
 
-            save_tasks(&data_path, &tasks);
+            save_tasks(&data_path, &mut tasks);
 
             println!("Task added.");
         }
