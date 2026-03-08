@@ -25,7 +25,7 @@
 
 - [x] allow hashes to be searched by prefix if only one match is available
 - [x] allow Xd format for deadlines for X number of days since today
-- [ ] just remove the title its annoying i dont like it anymore
+- [ ] just remove the title by default its annoying i dont like it anymore
 - [ ] update readme with usage
 
 - [ ] editing tasks

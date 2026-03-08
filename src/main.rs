@@ -210,8 +210,12 @@ enum Commands {
         #[arg(long = "no-hash")]
         no_hash: bool,
 
+        /// Default behaviour; left for backwards compatibility
         #[arg(long = "no-title")]
         no_title: bool,
+
+        #[arg(long, short)]
+        title: Option<String>,
 
         #[arg(long, short)]
         all: bool,
@@ -356,11 +360,14 @@ fn main() {
             completed,
             overdue,
             no_hash,
-            no_title,
+            title,
             all,
+
+            #[allow(unused)] // default
+            no_title,
         } => {
-            if !no_title {
-                println!("{}", "Deadline".bold().underline());
+            if title.is_some() {
+                println!("{}", title.unwrap().bold().underline());
             }
             let tasks = load_tasks(&data_path);
 
