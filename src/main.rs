@@ -87,7 +87,12 @@ impl Task {
             }
         };
 
-        println!("{id} {status}  {}", self.title);
+        let title = match self.completed {
+            Some(_) => self.title.dimmed().strikethrough(),
+            None => self.title.normal(),
+        };
+
+        println!("{id} {status}  {title}");
     }
 
     fn get_id(&self) -> u32 {
@@ -141,6 +146,9 @@ enum Commands {
         #[arg(long, short)]
         force: bool,
     },
+
+    /// Mark a task as completed
+    Strike {},
 
     /// View all the tasks
     View,
