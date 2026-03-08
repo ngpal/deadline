@@ -7,13 +7,14 @@ The idea is to have a CLI application through which you may
 - [ ] Customization on colours
 
 # Installation
-Clone the repository locally
+Clone the repository locally and install with cargo
 ```sh
-git clone https://github.com/ngpal/deadline
-```
-Install with cargo
-```sh
-cargo install --path deadline
+cargo install --git https://github.com/ngpal/deadline
+
+# OR
+
+git clone https://github.com/ngpal/deadline <path>
+cargo install --path <path-to-deadline>
 ```
 (Optional) Add the following lines to your  `.bashrc` or respective "run commands" file equivalent
 ```sh
