@@ -340,7 +340,7 @@ fn main() {
             tasks.remove(target_task);
             println!(
                 "Task {} successfully deleted",
-                format!("[{}]", tasks[target_task].get_id()).cyan()
+                format!("[{:0<6X}]", tasks[target_task].get_id()).cyan()
             );
             save_tasks(&data_path, &mut tasks);
         }
