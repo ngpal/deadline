@@ -14,13 +14,14 @@
 - [x] indication while printing for autoclear tasks
 - [x] completing tasks behind deadline
   - [x] cleaner printing for completed tasks
-- [ ] `view` command should show all the tasks, ordered with deadline priority, and even completed tasks at the end
-  - [ ] default shows due and overdue tasks
-  - [ ] `--completed` should show completed tasks only
-  - [ ] `--overdue` should show overdue tasks only
-  - [ ] `--no-hash` hide hashes
-  - [ ] `--no-title` hide title
-  - [ ] `--all` should show all the tasks
+- [x] `view` command options
+  - [x] default shows due and overdue tasks
+  - [x] `--reverse` should show the tasks in reverse order
+  - [x] `--completed` should show completed tasks only
+  - [x] `--overdue` should show overdue tasks only
+  - [x] `--no-hash` hide hashes
+  - [x] `--no-title` hide title
+  - [x] `--all` should show all the tasks, overdue at the top, completed at the end
 
 - [ ] editing tasks
   - [ ] pushing deadlines

@@ -59,9 +59,13 @@ impl Task {
         return s;
     }
 
-    fn display(&self) {
+    fn display(&self, show_hash: bool) {
         let today = Local::now().date_naive();
-        let id = format!("[{:0>6X}]", self.get_id()).cyan();
+        let id = if show_hash {
+            format!("[{:0>6X}] ", self.get_id()).cyan()
+        } else {
+            "".normal()
+        };
 
         let raw_status = match self.completed {
             None => {
@@ -97,7 +101,13 @@ impl Task {
             None => self.title.normal(),
         };
 
-        println!("{id} {status}  {title}");
+        let autoclear = if self.autoclear {
+            " [-c]".yellow()
+        } else {
+            "".normal()
+        };
+
+        println!("{id}{status}  {title}{autoclear}");
     }
 
     fn get_id(&self) -> u32 {
@@ -177,7 +187,25 @@ enum Commands {
     },
 
     /// View all the tasks
-    View,
+    View {
+        #[arg(long, short)]
+        reverse: bool,
+
+        #[arg(long, short)]
+        completed: bool,
+
+        #[arg(long, short)]
+        overdue: bool,
+
+        #[arg(long = "no-hash")]
+        no_hash: bool,
+
+        #[arg(long = "no-title")]
+        no_title: bool,
+
+        #[arg(long, short)]
+        all: bool,
+    },
 
     /// Print the path to data file
     Path,
@@ -229,7 +257,7 @@ fn main() {
             let mut tasks = load_tasks(&data_path);
 
             let task = Task::new(title, date, autoclear);
-            task.display();
+            task.display(true);
             tasks.push(task);
 
             save_tasks(&data_path, &mut tasks);
@@ -239,57 +267,27 @@ fn main() {
             // fetch tasks
             let mut tasks = load_tasks(&data_path);
 
-            // find task
-            let mut target_task = None;
-            for (i, task) in tasks.iter().enumerate() {
-                if format!("{:0>6X}", task.get_id()) == hash {
-                    target_task = Some(i);
-                    break;
-                }
+            let target_task = match find_task(hash, &tasks) {
+                Some(value) => value,
+                None => return,
             }
+            .unwrap();
 
-            // exit if invalid hash
-            if target_task.is_none() {
-                eprintln!(
-                    "{}: could not find task with hash '{}'",
-                    "ERROR".red().bold(),
-                    hash
-                );
-                return;
-            }
-
-            let target_task = target_task.unwrap();
             tasks[target_task].strike();
-            tasks[target_task].display();
+            tasks[target_task].display(true);
 
             save_tasks(&data_path, &mut tasks);
         }
         Commands::Unstrike { hash } => {
             // fetch tasks
             let mut tasks = load_tasks(&data_path);
-
-            // find task
-            let mut target_task = None;
-            for (i, task) in tasks.iter().enumerate() {
-                if format!("{:0>6X}", task.get_id()) == hash {
-                    target_task = Some(i);
-                    break;
-                }
+            let target_task = match find_task(hash, &tasks) {
+                Some(value) => value,
+                None => return,
             }
-
-            // exit if invalid hash
-            if target_task.is_none() {
-                eprintln!(
-                    "{}: could not find task with hash '{}'",
-                    "ERROR".red().bold(),
-                    hash
-                );
-                return;
-            }
-
-            let target_task = target_task.unwrap();
+            .unwrap();
             tasks[target_task].unstrike();
-            tasks[target_task].display();
+            tasks[target_task].display(true);
 
             save_tasks(&data_path, &mut tasks);
         }
@@ -297,28 +295,13 @@ fn main() {
         Commands::Del { hash, force } => {
             // fetch tasks
             let mut tasks = load_tasks(&data_path);
-
-            // find task
-            let mut target_task = None;
-            for (i, task) in tasks.iter().enumerate() {
-                if format!("{:0>6X}", task.get_id()) == hash {
-                    target_task = Some(i);
-                    break;
-                }
+            let target_task = match find_task(hash.clone(), &tasks) {
+                Some(value) => value,
+                None => return,
             }
+            .unwrap();
 
-            // exit if invalid hash
-            if target_task.is_none() {
-                eprintln!(
-                    "{}: could not find task with hash '{}'",
-                    "ERROR".red().bold(),
-                    hash
-                );
-                return;
-            }
-
-            let target_task = target_task.unwrap();
-            tasks[target_task].display();
+            tasks[target_task].display(true);
 
             // confirmation message if not forced
             if !force {
@@ -346,8 +329,17 @@ fn main() {
             save_tasks(&data_path, &mut tasks);
         }
 
-        Commands::View => {
-            println!("{}", "Deadline".bold().underline());
+        Commands::View {
+            reverse,
+            completed,
+            overdue,
+            no_hash,
+            no_title,
+            all,
+        } => {
+            if !no_title {
+                println!("{}", "Deadline".bold().underline());
+            }
             let tasks = load_tasks(&data_path);
 
             if tasks.is_empty() {
@@ -366,7 +358,20 @@ fn main() {
                         return false;
                     }
 
-                    true
+                    if all {
+                        return true;
+                    }
+
+                    if completed {
+                        return task.completed.is_some();
+                    }
+
+                    if overdue {
+                        return days < 0 && task.completed.is_none();
+                    }
+
+                    // default
+                    task.completed.is_none()
                 })
                 .collect();
 
@@ -375,9 +380,23 @@ fn main() {
                 return;
             }
 
-            visible_tasks.sort_by_key(|task| (task.end - Local::now().date_naive()).num_days());
+            visible_tasks.sort_by_key(|task| task.end);
+            visible_tasks.sort_by_key(|task| {
+                if task.completed.is_some() {
+                    2
+                } else if (task.end - today).num_days() < 0 {
+                    0
+                } else {
+                    1
+                }
+            });
+
+            if reverse {
+                visible_tasks.reverse();
+            }
+
             for task in visible_tasks {
-                task.display();
+                task.display(!no_hash);
             }
         }
 
@@ -385,4 +404,23 @@ fn main() {
             println!("{}", data_path.display());
         }
     }
+}
+
+fn find_task(hash: String, tasks: &Vec<Task>) -> Option<Option<usize>> {
+    let mut target_task = None;
+    for (i, task) in tasks.iter().enumerate() {
+        if format!("{:0>6X}", task.get_id()) == hash {
+            target_task = Some(i);
+            break;
+        }
+    }
+    if target_task.is_none() {
+        eprintln!(
+            "{}: could not find task with hash '{}'",
+            "ERROR".red().bold(),
+            hash
+        );
+        return None;
+    }
+    Some(target_task)
 }
