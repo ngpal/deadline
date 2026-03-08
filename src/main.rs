@@ -338,7 +338,10 @@ fn main() {
 
             // delete the task
             tasks.remove(target_task);
-            println!("Task {} successfully deleted", format!("[{}]", hash).cyan());
+            println!(
+                "Task {} successfully deleted",
+                format!("[{}]", tasks[target_task].get_id()).cyan()
+            );
             save_tasks(&data_path, &mut tasks);
         }
 
@@ -421,7 +424,7 @@ fn find_task(hash: String, tasks: &Vec<Task>) -> Option<usize> {
     for (i, task) in tasks.iter().enumerate() {
         let id = format!("{:0>6X}", task.get_id());
 
-        if id.starts_with(&hash) {
+        if id.starts_with(&hash.to_uppercase()) {
             matches.push(i);
         }
     }
