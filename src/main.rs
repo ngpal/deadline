@@ -113,13 +113,13 @@ impl Task {
         }
     }
 
-    fn strike(&self) {
+    fn strike(&mut self) {
         if self.completed.is_none() {
             self.completed = Some(Local::now().date_naive());
         }
     }
 
-    fn unstrike(&self) -> _ {
+    fn unstrike(&mut self) {
         if self.completed.is_some() {
             self.completed = None
         }
