@@ -59,9 +59,9 @@ impl Task {
         return s;
     }
 
-    fn display(&self, show_hash: bool) {
+    fn display(&self, opts: DisplayOpts) {
         let today = Local::now().date_naive();
-        let id = if show_hash {
+        let id = if opts.show_hash {
             format!("[{:0>6X}] ", self.get_id()).cyan()
         } else {
             "".normal()
@@ -101,7 +101,7 @@ impl Task {
             None => self.title.normal(),
         };
 
-        let autoclear = if self.autostrike {
+        let autoclear = if self.autostrike && opts.show_flags {
             " [-s]".yellow()
         } else {
             "".normal()
@@ -147,6 +147,27 @@ impl Task {
             if self.end < today {
                 self.completed = Some(today);
             }
+        }
+    }
+}
+
+struct DisplayOpts {
+    show_hash: bool,
+    show_flags: bool,
+}
+
+impl DisplayOpts {
+    fn new(show_hash: bool, show_flags: bool) -> Self {
+        Self {
+            show_hash,
+            show_flags,
+        }
+    }
+
+    fn default() -> Self {
+        Self {
+            show_hash: true,
+            show_flags: true,
         }
     }
 }
@@ -213,6 +234,9 @@ enum Commands {
         /// Default behaviour; left for backwards compatibility
         #[arg(long = "no-title")]
         no_title: bool,
+
+        #[arg(long = "no-flags")]
+        no_flags: bool,
 
         #[arg(long, short)]
         title: Option<String>,
@@ -283,7 +307,7 @@ fn main() {
             let mut tasks = load_tasks(&data_path);
 
             let task = Task::new(title, date, autoclear);
-            task.display(true);
+            task.display(DisplayOpts::default());
             tasks.push(task);
 
             save_tasks(&data_path, &mut tasks);
@@ -299,7 +323,7 @@ fn main() {
             };
 
             tasks[target_task].strike();
-            tasks[target_task].display(true);
+            tasks[target_task].display(DisplayOpts::default());
 
             save_tasks(&data_path, &mut tasks);
         }
@@ -311,7 +335,7 @@ fn main() {
                 None => return,
             };
             tasks[target_task].unstrike();
-            tasks[target_task].display(true);
+            tasks[target_task].display(DisplayOpts::default());
 
             save_tasks(&data_path, &mut tasks);
         }
@@ -324,7 +348,7 @@ fn main() {
                 None => return,
             };
 
-            tasks[target_task].display(true);
+            tasks[target_task].display(DisplayOpts::default());
 
             // confirmation message if not forced
             if !force {
@@ -362,6 +386,7 @@ fn main() {
             no_hash,
             title,
             all,
+            no_flags,
 
             #[allow(unused)] // default
             no_title,
@@ -421,7 +446,7 @@ fn main() {
             }
 
             for task in visible_tasks {
-                task.display(!no_hash);
+                task.display(DisplayOpts::new(!no_hash, !no_flags));
             }
         }
 

@@ -26,7 +26,8 @@
 - [x] allow hashes to be searched by prefix if only one match is available
 - [x] allow Xd format for deadlines for X number of days since today
 - [x] just remove the title by default its annoying i dont like it anymore
-- [ ] update readme with usage
+- [x] update readme with usage
+- [ ] `view --no-flags` to hide the autoclear flags
 
 - [ ] editing tasks
   - [ ] pushing deadlines
@@ -36,6 +37,6 @@
 - [ ] config file
   - [ ] config editing commands
   - [ ] config for colours
-  - [ ] config for what tasks to show in the view command
   - [ ] config for how many tasks view shows by default
+
 - [ ] reccuring tasks
