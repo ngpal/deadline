@@ -35,8 +35,8 @@ struct Task {
     title: String,
     end: NaiveDate,
 
-    #[serde(default)]
-    autoclear: bool,
+    #[serde(default, alias = "autoclear")]
+    autostrike: bool,
 
     #[serde(default)]
     hash: Option<u32>,
@@ -46,11 +46,11 @@ struct Task {
 }
 
 impl Task {
-    fn new(title: String, end: NaiveDate, autoclear: bool) -> Self {
+    fn new(title: String, end: NaiveDate, autostrike: bool) -> Self {
         let mut s = Self {
             title,
             end,
-            autoclear,
+            autostrike,
             completed: None,
             hash: None,
         };
@@ -101,8 +101,8 @@ impl Task {
             None => self.title.normal(),
         };
 
-        let autoclear = if self.autoclear {
-            " [-c]".yellow()
+        let autoclear = if self.autostrike {
+            " [-s]".yellow()
         } else {
             "".normal()
         };
@@ -139,6 +139,16 @@ impl Task {
             self.completed = None
         }
     }
+
+    fn apply_autostrike(&mut self) {
+        if self.autostrike && self.completed.is_none() {
+            let today = Local::now().date_naive();
+
+            if self.end < today {
+                self.completed = Some(today);
+            }
+        }
+    }
 }
 
 #[derive(Parser)]
@@ -159,9 +169,9 @@ enum Commands {
         /// Deadline of the task in YYYY-MM-DD
         end: String,
 
-        /// Task will be hidden/cleared after deadline
+        /// Task will be striked after deadline
         #[arg(long, short = 'c')]
-        autoclear: bool,
+        autostrike: bool,
     },
 
     /// Delete an existing task
@@ -229,7 +239,13 @@ fn load_tasks(path: &PathBuf) -> Vec<Task> {
 
     let content = fs::read_to_string(path).expect("Could not read tasks file");
 
-    serde_json::from_str(&content).unwrap_or_default()
+    let mut tasks: Vec<Task> = serde_json::from_str(&content).unwrap_or_default();
+
+    for task in tasks.iter_mut() {
+        task.apply_autostrike();
+    }
+
+    tasks
 }
 
 fn save_tasks(path: &PathBuf, tasks: &mut [Task]) {
@@ -249,7 +265,7 @@ fn main() {
         Commands::Add {
             title,
             end,
-            autoclear,
+            autostrike: autoclear,
         } => {
             let date = NaiveDate::parse_from_str(&end, "%Y-%m-%d")
                 .expect("Invalid date format. Use YYYY-MM-DD");
@@ -270,8 +286,7 @@ fn main() {
             let target_task = match find_task(hash, &tasks) {
                 Some(value) => value,
                 None => return,
-            }
-            .unwrap();
+            };
 
             tasks[target_task].strike();
             tasks[target_task].display(true);
@@ -284,8 +299,7 @@ fn main() {
             let target_task = match find_task(hash, &tasks) {
                 Some(value) => value,
                 None => return,
-            }
-            .unwrap();
+            };
             tasks[target_task].unstrike();
             tasks[target_task].display(true);
 
@@ -298,8 +312,7 @@ fn main() {
             let target_task = match find_task(hash.clone(), &tasks) {
                 Some(value) => value,
                 None => return,
-            }
-            .unwrap();
+            };
 
             tasks[target_task].display(true);
 
@@ -354,10 +367,6 @@ fn main() {
                 .filter(|task| {
                     let days = (task.end - today).num_days();
 
-                    if task.autoclear && days < 0 {
-                        return false;
-                    }
-
                     if all {
                         return true;
                     }
@@ -406,21 +415,18 @@ fn main() {
     }
 }
 
-fn find_task(hash: String, tasks: &Vec<Task>) -> Option<Option<usize>> {
-    let mut target_task = None;
+fn find_task(hash: String, tasks: &Vec<Task>) -> Option<usize> {
     for (i, task) in tasks.iter().enumerate() {
         if format!("{:0>6X}", task.get_id()) == hash {
-            target_task = Some(i);
-            break;
+            return Some(i);
         }
     }
-    if target_task.is_none() {
-        eprintln!(
-            "{}: could not find task with hash '{}'",
-            "ERROR".red().bold(),
-            hash
-        );
-        return None;
-    }
-    Some(target_task)
+
+    eprintln!(
+        "{}: could not find task with hash '{}'",
+        "ERROR".red().bold(),
+        hash
+    );
+
+    None
 }
