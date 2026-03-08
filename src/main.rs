@@ -112,6 +112,18 @@ impl Task {
             self.hash = Some((hasher.finish() & 0x00FFFFFF) as u32);
         }
     }
+
+    fn strike(&self) {
+        if self.completed.is_none() {
+            self.completed = Some(Local::now().date_naive());
+        }
+    }
+
+    fn unstrike(&self) -> _ {
+        if self.completed.is_some() {
+            self.completed = None
+        }
+    }
 }
 
 #[derive(Parser)]
@@ -147,8 +159,17 @@ enum Commands {
         force: bool,
     },
 
-    /// Mark a task as completed
-    Strike {},
+    /// Strike/mark a task as completed
+    Strike {
+        /// Hash of the task
+        hash: String,
+    },
+
+    /// Unstrike a task
+    Unstrike {
+        /// Hash of the task
+        hash: String,
+    },
 
     /// View all the tasks
     View,
@@ -208,6 +229,61 @@ fn main() {
             save_tasks(&data_path, &mut tasks);
 
             println!("Task added.");
+        }
+
+        Commands::Strike { hash } => {
+            // fetch tasks
+            let mut tasks = load_tasks(&data_path);
+
+            // find task
+            let mut target_task = None;
+            for (i, task) in tasks.iter().enumerate() {
+                if format!("{:0<6X}", task.get_id()) == hash {
+                    target_task = Some(i);
+                    break;
+                }
+            }
+
+            // exit if invalid hash
+            if target_task.is_none() {
+                eprintln!(
+                    "{}: could not find task with hash '{}'",
+                    "ERROR".red().bold(),
+                    hash
+                );
+                return;
+            }
+
+            let target_task = target_task.unwrap();
+            tasks[target_task].strike();
+            tasks[target_task].display();
+        }
+        Commands::Unstrike { hash } => {
+            // fetch tasks
+            let mut tasks = load_tasks(&data_path);
+
+            // find task
+            let mut target_task = None;
+            for (i, task) in tasks.iter().enumerate() {
+                if format!("{:0<6X}", task.get_id()) == hash {
+                    target_task = Some(i);
+                    break;
+                }
+            }
+
+            // exit if invalid hash
+            if target_task.is_none() {
+                eprintln!(
+                    "{}: could not find task with hash '{}'",
+                    "ERROR".red().bold(),
+                    hash
+                );
+                return;
+            }
+
+            let target_task = target_task.unwrap();
+            tasks[target_task].unstrike();
+            tasks[target_task].display();
         }
 
         Commands::Del { hash, force } => {
