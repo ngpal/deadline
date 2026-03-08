@@ -242,7 +242,7 @@ fn main() {
             // find task
             let mut target_task = None;
             for (i, task) in tasks.iter().enumerate() {
-                if format!("{:0<6X}", task.get_id()) == hash {
+                if format!("{:0>6X}", task.get_id()) == hash {
                     target_task = Some(i);
                     break;
                 }
@@ -271,7 +271,7 @@ fn main() {
             // find task
             let mut target_task = None;
             for (i, task) in tasks.iter().enumerate() {
-                if format!("{:0<6X}", task.get_id()) == hash {
+                if format!("{:0>6X}", task.get_id()) == hash {
                     target_task = Some(i);
                     break;
                 }
@@ -301,7 +301,7 @@ fn main() {
             // find task
             let mut target_task = None;
             for (i, task) in tasks.iter().enumerate() {
-                if format!("{:0<6X}", task.get_id()) == hash {
+                if format!("{:0>6X}", task.get_id()) == hash {
                     target_task = Some(i);
                     break;
                 }
