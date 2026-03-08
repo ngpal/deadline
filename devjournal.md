@@ -23,10 +23,14 @@
   - [x] `--no-title` hide title
   - [x] `--all` should show all the tasks, overdue at the top, completed at the end
 
+- [x] allow hashes to be searched by prefix if only one match is available
+- [ ] allow Xd format for deadlines for X number of days since today
+
 - [ ] editing tasks
   - [ ] pushing deadlines
   - [ ] changing autoclear status
-  - [ ] changing complete status
+  - [x] changing complete status
+
 - [ ] config file
   - [ ] config editing commands
   - [ ] config for colours

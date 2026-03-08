@@ -170,7 +170,7 @@ enum Commands {
         end: String,
 
         /// Task will be striked after deadline
-        #[arg(long, short = 'c')]
+        #[arg(long, short = 's')]
         autostrike: bool,
     },
 
@@ -416,17 +416,36 @@ fn main() {
 }
 
 fn find_task(hash: String, tasks: &Vec<Task>) -> Option<usize> {
+    let mut matches = Vec::new();
+
     for (i, task) in tasks.iter().enumerate() {
-        if format!("{:0>6X}", task.get_id()) == hash {
-            return Some(i);
+        let id = format!("{:0>6X}", task.get_id());
+
+        if id.starts_with(&hash) {
+            matches.push(i);
         }
     }
 
-    eprintln!(
-        "{}: could not find task with hash '{}'",
-        "ERROR".red().bold(),
-        hash
-    );
+    match matches.len() {
+        0 => {
+            eprintln!(
+                "{}: could not find task with hash '{}'",
+                "ERROR".red().bold(),
+                hash
+            );
+            None
+        }
 
-    None
+        1 => Some(matches[0]),
+
+        _ => {
+            eprintln!(
+                "{}: hash '{}' is ambiguous ({} matches)",
+                "ERROR".red().bold(),
+                hash,
+                matches.len()
+            );
+            None
+        }
+    }
 }
