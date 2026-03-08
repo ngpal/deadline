@@ -224,11 +224,10 @@ fn main() {
             let mut tasks = load_tasks(&data_path);
 
             let task = Task::new(title, date, autoclear);
+            task.display();
             tasks.push(task);
 
             save_tasks(&data_path, &mut tasks);
-
-            println!("Task added.");
         }
 
         Commands::Strike { hash } => {
