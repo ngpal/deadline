@@ -256,6 +256,8 @@ fn main() {
             let target_task = target_task.unwrap();
             tasks[target_task].strike();
             tasks[target_task].display();
+
+            save_tasks(&data_path, &mut tasks);
         }
         Commands::Unstrike { hash } => {
             // fetch tasks
@@ -283,6 +285,8 @@ fn main() {
             let target_task = target_task.unwrap();
             tasks[target_task].unstrike();
             tasks[target_task].display();
+
+            save_tasks(&data_path, &mut tasks);
         }
 
         Commands::Del { hash, force } => {
