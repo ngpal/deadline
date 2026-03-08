@@ -5,6 +5,7 @@ use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::hash::{DefaultHasher, Hash, Hasher};
+use std::io::{Write, stdin, stdout};
 use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize, Hash)]
@@ -91,6 +92,12 @@ enum Commands {
         #[arg(long, short = 'c')]
         autoclear: bool,
     },
+    Del {
+        hash: String,
+
+        #[arg(long, short)]
+        force: bool,
+    },
     View,
     Path,
 }
@@ -146,6 +153,58 @@ fn main() {
             save_tasks(&data_path, &mut tasks);
 
             println!("Task added.");
+        }
+
+        Commands::Del { hash, force } => {
+            // fetch tasks
+            let mut tasks = load_tasks(&data_path);
+
+            // find task
+            let mut target_task = None;
+            for (i, task) in tasks.iter().enumerate() {
+                if format!("{:0<6X}", task.get_id()) == hash {
+                    target_task = Some(i);
+                    break;
+                }
+            }
+
+            // exit if invalid hash
+            if target_task.is_none() {
+                eprintln!(
+                    "{}: could not find task with hash '{}'",
+                    "ERROR".red().bold(),
+                    hash
+                );
+                return;
+            }
+
+            let target_task = target_task.unwrap();
+            tasks[target_task].display();
+
+            // confirmation message if not forced
+            if !force {
+                println!(
+                    "{}",
+                    "Hint: Use -f or --force to delete without a confirmation".yellow()
+                );
+                print!(
+                    "Are you sure you want to delete the above task? This action cannot be undone [N/y]: "
+                );
+                stdout().flush().unwrap();
+
+                let mut input = String::new();
+                stdin().read_line(&mut input).unwrap();
+
+                if input.as_str().to_lowercase().trim() != "y" {
+                    println!("Deletion cancelled");
+                    return;
+                }
+            }
+
+            // delete the task
+            tasks.remove(target_task);
+            println!("Task {} successfully deleted", format!("[{}]", hash).cyan());
+            save_tasks(&data_path, &mut tasks);
         }
 
         Commands::View => {
