@@ -49,10 +49,11 @@ impl Task {
         };
 
         println!(
-            "{} {:>3} days - {}",
+            "{} {:>3} days - {}{}",
             format!("[{:0>6X}]", self.get_id()).cyan(),
             days_colored,
-            self.title
+            self.title,
+            (if self.autoclear { " [-c]" } else { "" }).yellow()
         );
     }
 
@@ -89,6 +90,7 @@ enum Commands {
     Add {
         /// Title/short description of task
         title: String,
+
         /// Deadline of the task in YYYY-MM-DD
         end: String,
 
