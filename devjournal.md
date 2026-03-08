@@ -24,7 +24,9 @@
   - [x] `--all` should show all the tasks, overdue at the top, completed at the end
 
 - [x] allow hashes to be searched by prefix if only one match is available
-- [ ] allow Xd format for deadlines for X number of days since today
+- [x] allow Xd format for deadlines for X number of days since today
+- [ ] just remove the title its annoying i dont like it anymore
+- [ ] update readme with usage
 
 - [ ] editing tasks
   - [ ] pushing deadlines

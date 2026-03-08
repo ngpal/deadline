@@ -267,8 +267,14 @@ fn main() {
             end,
             autostrike: autoclear,
         } => {
-            let date = NaiveDate::parse_from_str(&end, "%Y-%m-%d")
-                .expect("Invalid date format. Use YYYY-MM-DD");
+            let date = if let Some(days) = end.strip_suffix('d') {
+                let days: i64 = days.parse().expect("Invalid day format. Use Xd (e.g. 3d)");
+
+                Local::now().date_naive() + chrono::Duration::days(days)
+            } else {
+                NaiveDate::parse_from_str(&end, "%Y-%m-%d")
+                    .expect("Invalid date format. Use YYYY-MM-DD or Xd")
+            };
 
             let mut tasks = load_tasks(&data_path);
 
