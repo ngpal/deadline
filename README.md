@@ -25,5 +25,5 @@ dl view
 ```
 
 # Contribute
-Ideas/recommendations/bugfix requests are all welcome, contact me via <nandagopalnmenon@icloud.com> or submit at issue
+Ideas/recommendations/bugfix requests are all welcome, contact me via <nandagopalnmenon@icloud.com> or submit an issue
 Submit a PR if you're trying to contribute and I'll check it out
