@@ -13,7 +13,8 @@
 - [x] deleting tasks
 - [x] indication while printing for autoclear tasks
 - [ ] completing tasks behind deadline
-- [ ] `view all` command should show all the tasks, ordered with deadline priority, and even completed tasks at the end
+  - [ ] cleaner printing for completed tasks
+- [ ] `view --all` command should show all the tasks, ordered with deadline priority, and even completed tasks at the end
 - [ ] editing tasks
   - [ ] pushing deadlines
   - [ ] changing autoclear status

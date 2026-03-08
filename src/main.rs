@@ -2,11 +2,33 @@ use chrono::{Local, NaiveDate};
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 use directories::ProjectDirs;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::fs;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::{Write, stdin, stdout};
 use std::path::PathBuf;
+
+// patchwork because of my poor schema planning :P
+fn deserialize_completed<'de, D>(deserializer: D) -> Result<Option<NaiveDate>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum CompletedField {
+        Bool(bool),
+        Date(NaiveDate),
+    }
+
+    let value = Option::<CompletedField>::deserialize(deserializer)?;
+
+    match value {
+        Some(CompletedField::Bool(true)) => Ok(Some(Local::now().date_naive())),
+        Some(CompletedField::Bool(false)) => Ok(None),
+        Some(CompletedField::Date(date)) => Ok(Some(date)),
+        None => Ok(None),
+    }
+}
 
 #[derive(Serialize, Deserialize, Hash)]
 struct Task {
@@ -19,8 +41,8 @@ struct Task {
     #[serde(default)]
     hash: Option<u32>,
 
-    #[serde(default)]
-    completed: bool,
+    #[serde(default, deserialize_with = "deserialize_completed")]
+    completed: Option<NaiveDate>,
 }
 
 impl Task {
@@ -29,7 +51,7 @@ impl Task {
             title,
             end,
             autoclear,
-            completed: false,
+            completed: None,
             hash: None,
         };
 
@@ -38,23 +60,34 @@ impl Task {
     }
 
     fn display(&self) {
-        let days = (self.end - Local::now().date_naive()).num_days();
+        let today = Local::now().date_naive();
+        let id = format!("[{:0>6X}]", self.get_id()).cyan();
 
-        let days_colored = if days < 0 {
-            days.to_string().red()
-        } else if days < 3 {
-            days.to_string().yellow()
-        } else {
-            days.to_string().green()
+        let status = match self.completed {
+            None => {
+                let delta = (self.end - today).num_days();
+
+                let s = format!("{:>3}d", delta);
+
+                if delta < 0 {
+                    s.red()
+                } else if delta < 3 {
+                    s.yellow()
+                } else {
+                    s.green()
+                }
+            }
+
+            Some(done) => {
+                let delta = (self.end - done).num_days();
+
+                let s = format!("✓{:>3}d", delta);
+
+                s.blue().dimmed()
+            }
         };
 
-        println!(
-            "{} {:>3} days - {}{}",
-            format!("[{:0>6X}]", self.get_id()).cyan(),
-            days_colored,
-            self.title,
-            (if self.autoclear { " [-c]" } else { "" }).yellow()
-        );
+        println!("{id} {status}  {}", self.title);
     }
 
     fn get_id(&self) -> u32 {
