@@ -63,29 +63,34 @@ impl Task {
         let today = Local::now().date_naive();
         let id = format!("[{:0>6X}]", self.get_id()).cyan();
 
+        let raw_status = match self.completed {
+            None => {
+                let delta = (self.end - today).num_days();
+                format!("{:>3}d", delta)
+            }
+            Some(done) => {
+                let delta = (self.end - done).num_days();
+                format!("✓{:>3}d", delta)
+            }
+        };
+
         let status = match self.completed {
             None => {
                 let delta = (self.end - today).num_days();
 
-                let s = format!("{:>3}d", delta);
-
                 if delta < 0 {
-                    s.red()
+                    raw_status.red()
                 } else if delta < 3 {
-                    s.yellow()
+                    raw_status.yellow()
                 } else {
-                    s.green()
+                    raw_status.green()
                 }
             }
-
-            Some(done) => {
-                let delta = (self.end - done).num_days();
-
-                let s = format!("✓{:>3}d", delta);
-
-                s.blue().dimmed()
-            }
+            Some(_) => raw_status.blue(),
         };
+
+        // enforce fixed column width
+        let status = format!("{status:>5}");
 
         let title = match self.completed {
             Some(_) => self.title.dimmed().strikethrough(),
