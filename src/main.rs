@@ -85,20 +85,32 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Add a new task
     Add {
+        /// Title/short description of task
         title: String,
+        /// Deadline of the task in YYYY-MM-DD
         end: String,
 
+        /// Task will be hidden/cleared after deadline
         #[arg(long, short = 'c')]
         autoclear: bool,
     },
+
+    /// Delete an existing task
     Del {
+        /// Hash of the task
         hash: String,
 
+        /// Task will be deleted without confirmation
         #[arg(long, short)]
         force: bool,
     },
+
+    /// View all the tasks
     View,
+
+    /// Print the path to data file
     Path,
 }
 
