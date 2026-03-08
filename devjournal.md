@@ -27,7 +27,7 @@
 - [x] allow Xd format for deadlines for X number of days since today
 - [x] just remove the title by default its annoying i dont like it anymore
 - [x] update readme with usage
-- [ ] `view --no-flags` to hide the autoclear flags
+- [x] `view --no-flags` to hide the autoclear flags
 
 - [ ] editing tasks
   - [ ] pushing deadlines

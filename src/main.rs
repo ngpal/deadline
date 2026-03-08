@@ -82,9 +82,9 @@ impl Task {
             None => {
                 let delta = (self.end - today).num_days();
 
-                if delta < 0 {
+                if delta < 2 {
                     raw_status.red()
-                } else if delta < 3 {
+                } else if delta < 5 {
                     raw_status.yellow()
                 } else {
                     raw_status.green()
