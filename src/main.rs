@@ -217,6 +217,9 @@ enum Commands {
         hash: String,
     },
 
+    /// Push a task
+    Push { hash: String, date: String },
+
     /// View all the tasks
     View {
         #[arg(long, short)]
@@ -299,14 +302,7 @@ fn main() {
             end,
             autostrike: autoclear,
         } => {
-            let date = if let Some(days) = end.strip_suffix('d') {
-                let days: i64 = days.parse().expect("Invalid day format. Use Xd (e.g. 3d)");
-
-                Local::now().date_naive() + chrono::Duration::days(days)
-            } else {
-                NaiveDate::parse_from_str(&end, "%Y-%m-%d")
-                    .expect("Invalid date format. Use YYYY-MM-DD or Xd")
-            };
+            let date = parse_date(end);
 
             let mut tasks = load_tasks(&data_path);
 
@@ -331,6 +327,7 @@ fn main() {
 
             save_tasks(&data_path, &mut tasks);
         }
+
         Commands::Unstrike { hash } => {
             // fetch tasks
             let mut tasks = load_tasks(&data_path);
@@ -339,6 +336,22 @@ fn main() {
                 None => return,
             };
             tasks[target_task].unstrike();
+            tasks[target_task].display(DisplayOpts::default());
+
+            save_tasks(&data_path, &mut tasks);
+        }
+
+        Commands::Push { hash, date } => {
+            let mut tasks = load_tasks(&data_path);
+
+            let target_task = match find_task(hash, &tasks) {
+                Some(value) => value,
+                None => return,
+            };
+            let date = parse_date(date);
+
+            tasks[target_task].end = date;
+            println!("Task updated successfully");
             tasks[target_task].display(DisplayOpts::default());
 
             save_tasks(&data_path, &mut tasks);
@@ -375,11 +388,11 @@ fn main() {
             }
 
             // delete the task
-            tasks.remove(target_task);
             println!(
                 "Task {} successfully deleted",
                 format!("[{:0<6X}]", tasks[target_task].get_id()).cyan()
             );
+            tasks.remove(target_task);
             save_tasks(&data_path, &mut tasks);
         }
 
@@ -482,6 +495,17 @@ fn main() {
         Commands::Path => {
             println!("{}", data_path.display());
         }
+    }
+}
+
+fn parse_date(end: String) -> NaiveDate {
+    if let Some(days) = end.strip_suffix('d') {
+        let days: i64 = days.parse().expect("Invalid day format. Use Xd (e.g. 3d)");
+
+        Local::now().date_naive() + chrono::Duration::days(days)
+    } else {
+        NaiveDate::parse_from_str(&end, "%Y-%m-%d")
+            .expect("Invalid date format. Use YYYY-MM-DD or Xd")
     }
 }
 

@@ -31,15 +31,14 @@
 
 # 09-03-2026
 
-- [ ] `view --lines n` to show top n number of results
+- [x] `view --lines n` to show top n number of results
 - [ ] editing tasks
   - [ ] pushing deadlines
-  - [ ] changing autoclear status
+  - [ ] changing autostrike status
   - [x] changing complete status
 
 - [ ] config file
   - [ ] config editing commands
   - [ ] config for colours
-  - [ ] config for how many tasks view shows by default
 
 - [ ] reccuring tasks
