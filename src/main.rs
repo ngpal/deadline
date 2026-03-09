@@ -243,6 +243,10 @@ enum Commands {
 
         #[arg(long, short)]
         all: bool,
+
+        /// Number of lines to be printed (shows n-1 tasks, n at most)
+        #[arg(long, short = 'l')]
+        lines: Option<usize>,
     },
 
     /// Print the path to data file
@@ -387,6 +391,7 @@ fn main() {
             title,
             all,
             no_flags,
+            lines: count,
 
             #[allow(unused)] // default
             no_title,
@@ -445,8 +450,32 @@ fn main() {
                 visible_tasks.reverse();
             }
 
-            for task in visible_tasks {
-                task.display(DisplayOpts::new(!no_hash, !no_flags));
+            let total = visible_tasks.len();
+            let limit = count.unwrap_or(total);
+
+            if total <= limit {
+                for task in visible_tasks {
+                    task.display(DisplayOpts::new(!no_hash, !no_flags));
+                }
+            } else {
+                let shown = limit.saturating_sub(1);
+
+                for task in visible_tasks.iter().take(shown) {
+                    task.display(DisplayOpts::new(!no_hash, !no_flags));
+                }
+
+                let remaining = total - shown;
+
+                println!(
+                    "{}",
+                    format!(
+                        "+{} more task{}",
+                        remaining,
+                        if remaining > 1 { "s" } else { "" }
+                    )
+                    .dimmed()
+                    .italic()
+                );
             }
         }
 

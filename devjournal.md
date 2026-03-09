@@ -29,6 +29,9 @@
 - [x] update readme with usage
 - [x] `view --no-flags` to hide the autoclear flags
 
+# 09-03-2026
+
+- [ ] `view --lines n` to show top n number of results
 - [ ] editing tasks
   - [ ] pushing deadlines
   - [ ] changing autoclear status
