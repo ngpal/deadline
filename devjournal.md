@@ -32,9 +32,9 @@
 # 09-03-2026
 
 - [x] `view --lines n` to show top n number of results
-- [ ] editing tasks
-  - [ ] pushing deadlines
-  - [ ] changing autostrike status
+- [x] editing tasks
+  - [x] pushing deadlines
+  - [x] changing autostrike status
   - [x] changing complete status
 
 - [ ] config file

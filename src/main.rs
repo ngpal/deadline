@@ -220,6 +220,9 @@ enum Commands {
     /// Push a task
     Push { hash: String, date: String },
 
+    /// Toggle autostrike for a task
+    Astrike { hash: String },
+
     /// View all the tasks
     View {
         #[arg(long, short)]
@@ -341,6 +344,20 @@ fn main() {
             save_tasks(&data_path, &mut tasks);
         }
 
+        Commands::Astrike { hash } => {
+            let mut tasks = load_tasks(&data_path);
+            let target_task = match find_task(hash, &tasks) {
+                Some(value) => value,
+                None => return,
+            };
+
+            let task = &mut tasks[target_task];
+            (*task).autostrike = !task.autostrike;
+            task.display(DisplayOpts::default());
+
+            save_tasks(&data_path, &mut tasks);
+        }
+
         Commands::Push { hash, date } => {
             let mut tasks = load_tasks(&data_path);
 
@@ -351,7 +368,10 @@ fn main() {
             let date = parse_date(date);
 
             tasks[target_task].end = date;
-            println!("Task updated successfully");
+            println!(
+                "Task pushed to {} successfully",
+                date.format("%Y-%m-%d").to_string().green()
+            );
             tasks[target_task].display(DisplayOpts::default());
 
             save_tasks(&data_path, &mut tasks);
