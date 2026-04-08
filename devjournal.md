@@ -37,8 +37,13 @@
   - [x] changing autostrike status
   - [x] changing complete status
 
+# 08-04-2026
+- [ ] reccuring tasks
+  - recurring tasks without autoclear show all previous tasks
+  - recurring tasks just create a new task when their deadlines are hit/struck out
+  - [ ] reccuringness can be edited
+  - [ ] relative (same date every month/year or so) and absolute (n days)
+
 - [ ] config file
   - [ ] config editing commands
   - [ ] config for colours
-
-- [ ] reccuring tasks
