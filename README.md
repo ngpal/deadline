@@ -3,6 +3,7 @@ The idea is to have a CLI application through which you may
 - [x] Add deadlines
 - [x] Add the command to your `bashrc`/whatever equivalent script so that it pops up every time you open your terminal
 - [x] Optionally autostrike completed deadlines with `-s` flag when creating the task
+- [x] Read upcoming events from your macOS calendar
 - [ ] Progress percentages you can update yourself or autoupdate with time
 - [ ] Customization on colours
 
@@ -98,5 +99,44 @@ deadline del <hash> -f
 ```sh
 deadline path
 ```
+
+## Calendar integration (macOS only)
+
+Deadline can read events from your macOS calendar. First, compile the Swift helper:
+
+```sh
+swiftc calendar-reader.swift -o calendar-reader -framework EventKit
+```
+
+View upcoming calendar events:
+
+```sh
+deadline calendar             # next 14 days (alias: cal)
+deadline cal -d 7             # next 7 days
+deadline cal --name Work      # filter by calendar name
+deadline cal --completed      # show struck events too
+```
+
+Strike/unstrike calendar events using the same commands as tasks:
+
+```sh
+deadline strike <hash>        # strike a calendar event or task
+deadline unstrike <hash>      # unstrike a calendar event or task
+```
+
+Calendar events display their calendar name (e.g., `[Work]`, `[Personal]`) and can be filtered by it.
+
+Merge calendar events into the task view:
+
+```sh
+deadline view -C              # tasks + calendar events
+deadline view -C --cal-days 7 # tasks + next 7 days of events
+deadline view -C --name Work  # tasks + events from "Work" calendar
+```
+
+Calendar events show with a hex hash (same format as tasks) and a `(calendar)` suffix. Struck events are shown in blue with strikethrough, same as tasks.
+
+> **Note:** Calendar integration requires macOS and the `calendar-reader` binary in your working directory. On other platforms, these commands print a warning and show no events. Calendar event strike state is stored locally in `struck_events.json`.
+
 # Contribute
 Ideas/recommendations/bugfix requests are all welcome, contact me via <nandagopalnmenon@icloud.com> or submit an issue. Submit a PR if you're trying to contribute and I'll check it out
