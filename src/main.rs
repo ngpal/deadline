@@ -7,6 +7,7 @@ use std::fs;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::{Write, stdin, stdout};
 use std::path::PathBuf;
+use std::process::Command;
 
 // patchwork because of my poor schema planning :P
 fn deserialize_completed<'de, D>(deserializer: D) -> Result<Option<NaiveDate>, D::Error>
@@ -151,6 +152,154 @@ impl Task {
     }
 }
 
+#[derive(Deserialize)]
+struct CalendarEvent {
+    title: String,
+    start: String,
+    end: String,
+    #[serde(rename = "allDay")]
+    all_day: bool,
+    calendar: String,
+}
+
+impl CalendarEvent {
+    fn start_date(&self) -> Option<NaiveDate> {
+        NaiveDate::parse_from_str(&self.start[..10], "%Y-%m-%d").ok()
+    }
+
+    fn end_date(&self) -> Option<NaiveDate> {
+        NaiveDate::parse_from_str(&self.end[..10], "%Y-%m-%d").ok()
+    }
+
+    fn display(&self, opts: DisplayOpts) {
+        let today = Local::now().date_naive();
+        let id = if opts.show_hash {
+            format!("[CAL]    ").cyan()
+        } else {
+            "".normal()
+        };
+
+        let start = self.start_date().unwrap_or(today);
+        let delta = (start - today).num_days();
+
+        let raw_status = format!("{:>3}d", delta);
+
+        let status = if delta < 2 {
+            raw_status.red()
+        } else if delta < 5 {
+            raw_status.yellow()
+        } else {
+            raw_status.green()
+        };
+
+        let status = format!("{status:>5}");
+
+        let title = format!("{} (calendar)", self.title).dimmed();
+
+        println!("{id}{status}  {title}");
+    }
+}
+
+fn load_calendar_events(days: i64) -> Vec<CalendarEvent> {
+    if cfg!(not(target_os = "macos")) {
+        eprintln!(
+            "{}: calendar integration is only available on macOS",
+            "WARN".yellow().bold()
+        );
+        return Vec::new();
+    }
+
+    let binary_names = ["calendar-reader", "calendar_reader"];
+    let mut binary_path = None;
+
+    for name in &binary_names {
+        let path = PathBuf::from(format!("./{}", name));
+        if path.exists() {
+            binary_path = Some(path);
+            break;
+        }
+    }
+
+    let binary = match binary_path {
+        Some(p) => p,
+        None => {
+            eprintln!(
+                "{}: calendar-reader binary not found in current directory",
+                "WARN".yellow().bold()
+            );
+            return Vec::new();
+        }
+    };
+
+    let output = Command::new(&binary)
+        .arg(days.to_string())
+        .output();
+
+    match output {
+        Ok(out) if out.status.success() => {
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            serde_json::from_str(&stdout).unwrap_or_else(|e| {
+                eprintln!(
+                    "{}: failed to parse calendar output: {}",
+                    "WARN".yellow().bold(),
+                    e
+                );
+                Vec::new()
+            })
+        }
+        Ok(out) => {
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            eprintln!(
+                "{}: calendar-reader failed: {}",
+                "WARN".yellow().bold(),
+                stderr.trim()
+            );
+            Vec::new()
+        }
+        Err(e) => {
+            eprintln!(
+                "{}: could not run calendar-reader: {}",
+                "WARN".yellow().bold(),
+                e
+            );
+            Vec::new()
+        }
+    }
+}
+
+enum DisplayItem<'a> {
+    Task(&'a Task),
+    Calendar(&'a CalendarEvent),
+}
+
+impl<'a> DisplayItem<'a> {
+    fn sort_key(&self, today: NaiveDate) -> (i32, NaiveDate) {
+        match self {
+            DisplayItem::Task(task) => {
+                if task.completed.is_some() {
+                    (2, task.end)
+                } else if (task.end - today).num_days() < 0 {
+                    (0, task.end)
+                } else {
+                    (1, task.end)
+                }
+            }
+            DisplayItem::Calendar(event) => {
+                let date = event.start_date().unwrap_or(today);
+                (1, date)
+            }
+        }
+    }
+
+    fn display(&self, opts: DisplayOpts) {
+        match self {
+            DisplayItem::Task(task) => task.display(opts),
+            DisplayItem::Calendar(event) => event.display(opts),
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
 struct DisplayOpts {
     show_hash: bool,
     show_flags: bool,
@@ -253,10 +402,32 @@ enum Commands {
         /// Number of lines to be printed (shows n-1 tasks, n at most)
         #[arg(long, short = 'l')]
         lines: Option<usize>,
+
+        /// Include upcoming calendar events
+        #[arg(long, short = 'C')]
+        calendar: bool,
+
+        /// Number of days to look ahead for calendar events (default 14)
+        #[arg(long = "cal-days", default_value = "14")]
+        cal_days: i64,
     },
 
     /// Print the path to data file
     Path,
+
+    /// View upcoming calendar events
+    Calendar {
+        /// Number of days to look ahead
+        #[arg(long, short = 'd', default_value = "14")]
+        days: i64,
+
+        #[arg(long = "no-hash")]
+        no_hash: bool,
+
+        /// Number of lines to be printed
+        #[arg(long, short = 'l')]
+        lines: Option<usize>,
+    },
 }
 
 fn data_file_path() -> PathBuf {
@@ -425,6 +596,8 @@ fn main() {
             all,
             no_flags,
             lines: count,
+            calendar,
+            cal_days,
 
             #[allow(unused)] // default
             no_title,
@@ -433,11 +606,6 @@ fn main() {
                 println!("{}", title.unwrap().bold().underline());
             }
             let tasks = load_tasks(&data_path);
-
-            if tasks.is_empty() {
-                println!("No tasks yet.");
-                return;
-            }
 
             let today = Local::now().date_naive();
 
@@ -463,11 +631,6 @@ fn main() {
                 })
                 .collect();
 
-            if visible_tasks.is_empty() {
-                println!("No visible tasks.");
-                return;
-            }
-
             visible_tasks.sort_by_key(|task| task.end);
             visible_tasks.sort_by_key(|task| {
                 if task.completed.is_some() {
@@ -479,30 +642,49 @@ fn main() {
                 }
             });
 
-            if reverse {
-                visible_tasks.reverse();
+            let calendar_events = if calendar {
+                load_calendar_events(cal_days)
+            } else {
+                Vec::new()
+            };
+
+            let mut all_items: Vec<DisplayItem> = visible_tasks
+                .iter()
+                .map(DisplayItem::Task)
+                .collect();
+
+            for event in &calendar_events {
+                all_items.push(DisplayItem::Calendar(event));
             }
 
-            let total = visible_tasks.len();
+            all_items.sort_by_key(|item| item.sort_key(today));
+
+            if all_items.is_empty() {
+                println!("No visible tasks.");
+                return;
+            }
+
+            if reverse {
+                all_items.reverse();
+            }
+
+            let total = all_items.len();
             let limit = count.unwrap_or(total);
 
             if total <= limit {
-                for task in visible_tasks {
-                    task.display(DisplayOpts::new(!no_hash, !no_flags));
+                for item in &all_items {
+                    item.display(DisplayOpts::new(!no_hash, !no_flags));
                 }
             } else {
                 let shown = limit.saturating_sub(1);
-
-                for task in visible_tasks.iter().take(shown) {
-                    task.display(DisplayOpts::new(!no_hash, !no_flags));
+                for item in all_items.iter().take(shown) {
+                    item.display(DisplayOpts::new(!no_hash, !no_flags));
                 }
-
                 let remaining = total - shown;
-
                 println!(
                     "{}",
                     format!(
-                        "+{} more task{}",
+                        "+{} more item{}",
                         remaining,
                         if remaining > 1 { "s" } else { "" }
                     )
@@ -514,6 +696,50 @@ fn main() {
 
         Commands::Path => {
             println!("{}", data_path.display());
+        }
+
+        Commands::Calendar {
+            days,
+            no_hash,
+            lines: count,
+        } => {
+            let events = load_calendar_events(days);
+
+            if events.is_empty() {
+                println!("No upcoming calendar events.");
+                return;
+            }
+
+            let today = Local::now().date_naive();
+            let opts = DisplayOpts::new(!no_hash, true);
+
+            let mut sorted_events = events;
+            sorted_events.sort_by_key(|e| e.start_date().unwrap_or(today));
+
+            let total = sorted_events.len();
+            let limit = count.unwrap_or(total);
+
+            if total <= limit {
+                for event in sorted_events {
+                    event.display(opts);
+                }
+            } else {
+                let shown = limit.saturating_sub(1);
+                for event in sorted_events.iter().take(shown) {
+                    event.display(opts);
+                }
+                let remaining = total - shown;
+                println!(
+                    "{}",
+                    format!(
+                        "+{} more event{}",
+                        remaining,
+                        if remaining > 1 { "s" } else { "" }
+                    )
+                    .dimmed()
+                    .italic()
+                );
+            }
         }
     }
 }

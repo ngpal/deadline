@@ -3,6 +3,7 @@ The idea is to have a CLI application through which you may
 - [x] Add deadlines
 - [x] Add the command to your `bashrc`/whatever equivalent script so that it pops up every time you open your terminal
 - [x] Optionally autostrike completed deadlines with `-s` flag when creating the task
+- [x] Read upcoming events from your macOS calendar
 - [ ] Progress percentages you can update yourself or autoupdate with time
 - [ ] Customization on colours
 
@@ -98,5 +99,32 @@ deadline del <hash> -f
 ```sh
 deadline path
 ```
+
+## Calendar integration (macOS only)
+
+Deadline can read events from your macOS calendar. First, compile the Swift helper:
+
+```sh
+swiftc calendar-reader.swift -o calendar-reader -framework EventKit
+```
+
+Then view upcoming calendar events:
+
+```sh
+deadline calendar             # next 14 days
+deadline calendar -d 7        # next 7 days
+```
+
+You can also merge calendar events into the task view:
+
+```sh
+deadline view --calendar      # tasks + calendar events
+deadline view -C --cal-days 7 # tasks + next 7 days of events
+```
+
+Calendar events are displayed with a `[CAL]` tag and a `(calendar)` suffix to distinguish them from tasks. Events are read-only and not saved to the tasks file.
+
+> **Note:** Calendar integration requires macOS and the `calendar-reader` binary in your working directory. On other platforms, these commands print a warning and show no events.
+
 # Contribute
 Ideas/recommendations/bugfix requests are all welcome, contact me via <nandagopalnmenon@icloud.com> or submit an issue. Submit a PR if you're trying to contribute and I'll check it out
