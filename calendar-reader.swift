@@ -32,6 +32,7 @@ store.requestAccess(to: .event) { granted, error in
 
     let dateFormatter = ISO8601DateFormatter()
     dateFormatter.formatOptions = [.withInternetDateTime]
+    dateFormatter.timeZone = TimeZone.current
 
     var results: [CalendarEvent] = []
     for event in events {
