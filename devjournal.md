@@ -1,4 +1,5 @@
 # 05-03-2026
+
 - [x] add deadlines
 - [x] add command
 - [x] view command
@@ -7,9 +8,11 @@
 - [x] autoclear
 
 # 07-03-2026
+
 - [x] hashing the tasks for id
 
 # 08-03-2026
+
 - [x] deleting tasks
 - [x] indication while printing for autoclear tasks
 - [x] completing tasks behind deadline
@@ -37,18 +40,8 @@
   - [x] changing autostrike status
   - [x] changing complete status
 
-# 08-04-2026
-- [ ] reccuring tasks
-  - recurring tasks without autoclear show all previous tasks
-  - recurring tasks just create a new task when their deadlines are hit/struck out
-  - [ ] reccuringness can be edited
-  - [ ] relative (same date every month/year or so) and absolute (n days)
-
-- [ ] config file
-  - [ ] config editing commands
-  - [ ] config for colours
-
 # 22-07-2026
+
 - [x] macOS calendar integration
   - [x] Swift helper binary (calendar-reader.swift) using EventKit
   - [x] `deadline calendar` subcommand to view upcoming events (alias: `cal`)
@@ -61,3 +54,18 @@
   - [x] graceful fallback on non-macOS with warning
   - [x] local timezone handling for event dates
   - [x] version bump to 0.7.1
+- [x] multiple calendar name filtering
+  - [x] `--name` accepts comma-separated values (e.g. `--name Work,Personal`)
+  - [x] version bump to 0.7.2
+
+# Future
+
+- [ ] reccuring tasks
+  - recurring tasks without autoclear show all previous tasks
+  - recurring tasks just create a new task when their deadlines are hit/struck out
+  - [ ] reccuringness can be edited
+  - [ ] relative (same date every month/year or so) and absolute (n days)
+
+- [ ] config file
+  - [ ] config editing commands
+  - [ ] config for colours
