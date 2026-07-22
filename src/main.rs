@@ -518,7 +518,7 @@ enum Commands {
         #[arg(long = "cal-days", default_value = "14")]
         cal_days: i64,
 
-        /// Filter calendar events by calendar name
+        /// Filter calendar events by calendar name (comma-separated)
         #[arg(long = "name")]
         cal_name: Option<String>,
     },
@@ -544,7 +544,7 @@ enum Commands {
         #[arg(long, short)]
         completed: bool,
 
-        /// Filter by calendar name
+        /// Filter by calendar name (comma-separated)
         #[arg(long = "name")]
         cal_name: Option<String>,
     },
@@ -790,8 +790,9 @@ fn main() {
             let calendar_events = if calendar {
                 let mut events = load_calendar_events(cal_days);
 
-                if let Some(ref name) = cal_name {
-                    events.retain(|e| e.calendar.to_lowercase() == name.to_lowercase());
+                if let Some(ref name_str) = cal_name {
+                    let names: Vec<String> = name_str.split(',').map(|n| n.trim().to_lowercase()).collect();
+                    events.retain(|e| names.contains(&e.calendar.to_lowercase()));
                 }
 
                 if !all && !completed {
@@ -864,8 +865,9 @@ fn main() {
         } => {
             let mut events = load_calendar_events(days);
 
-            if let Some(ref name) = cal_name {
-                events.retain(|e| e.calendar.to_lowercase() == name.to_lowercase());
+            if let Some(ref name_str) = cal_name {
+                let names: Vec<String> = name_str.split(',').map(|n| n.trim().to_lowercase()).collect();
+                events.retain(|e| names.contains(&e.calendar.to_lowercase()));
             }
 
             if !completed {
