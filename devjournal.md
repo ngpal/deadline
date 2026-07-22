@@ -67,5 +67,5 @@
   - [ ] relative (same date every month/year or so) and absolute (n days)
 
 - [ ] config file
-  - [ ] config editing commands
+  - [ ] commands for editing config
   - [ ] config for colours

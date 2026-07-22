@@ -8,6 +8,152 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::{Write, stdin, stdout};
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::OnceLock;
+
+#[derive(Serialize, Deserialize, Clone)]
+struct ColorConfig {
+    #[serde(default = "default_overdue")]
+    overdue: String,
+
+    #[serde(default = "default_warning")]
+    warning: String,
+
+    #[serde(default = "default_safe")]
+    safe: String,
+
+    #[serde(default = "default_completed")]
+    completed: String,
+
+    #[serde(default = "default_hash_color")]
+    hash: String,
+}
+
+fn default_overdue() -> String { "red".to_string() }
+fn default_warning() -> String { "yellow".to_string() }
+fn default_safe() -> String { "green".to_string() }
+fn default_completed() -> String { "blue".to_string() }
+fn default_hash_color() -> String { "cyan".to_string() }
+
+impl Default for ColorConfig {
+    fn default() -> Self {
+        Self {
+            overdue: default_overdue(),
+            warning: default_warning(),
+            safe: default_safe(),
+            completed: default_completed(),
+            hash: default_hash_color(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+struct CalendarConfig {
+    #[serde(default = "default_cal_days")]
+    default_days: i64,
+
+    #[serde(default)]
+    default_names: Vec<String>,
+}
+
+fn default_cal_days() -> i64 { 14 }
+
+impl Default for CalendarConfig {
+    fn default() -> Self {
+        Self {
+            default_days: default_cal_days(),
+            default_names: Vec::new(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(default)]
+struct Config {
+    colors: ColorConfig,
+    calendar: CalendarConfig,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            colors: ColorConfig::default(),
+            calendar: CalendarConfig::default(),
+        }
+    }
+}
+
+impl Config {
+    fn resolve_color(&self, name: &str) -> colored::Color {
+        match name.to_lowercase().as_str() {
+            "red" => colored::Color::Red,
+            "yellow" => colored::Color::Yellow,
+            "green" => colored::Color::Green,
+            "blue" => colored::Color::Blue,
+            "cyan" => colored::Color::Cyan,
+            "magenta" => colored::Color::Magenta,
+            "white" => colored::Color::White,
+            "black" => colored::Color::Black,
+            "bright_red" => colored::Color::BrightRed,
+            "bright_yellow" => colored::Color::BrightYellow,
+            "bright_green" => colored::Color::BrightGreen,
+            "bright_blue" => colored::Color::BrightBlue,
+            "bright_cyan" => colored::Color::BrightCyan,
+            "bright_magenta" => colored::Color::BrightMagenta,
+            "bright_white" => colored::Color::BrightWhite,
+            "bright_black" => colored::Color::BrightBlack,
+            _ => colored::Color::White,
+        }
+    }
+
+    fn color_overdue(&self) -> colored::Color {
+        self.resolve_color(&self.colors.overdue)
+    }
+
+    fn color_warning(&self) -> colored::Color {
+        self.resolve_color(&self.colors.warning)
+    }
+
+    fn color_safe(&self) -> colored::Color {
+        self.resolve_color(&self.colors.safe)
+    }
+
+    fn color_completed(&self) -> colored::Color {
+        self.resolve_color(&self.colors.completed)
+    }
+
+    fn color_hash(&self) -> colored::Color {
+        self.resolve_color(&self.colors.hash)
+    }
+}
+
+fn config_file_path() -> PathBuf {
+    let proj_dirs = ProjectDirs::from("com", "nandu", "deadline")
+        .expect("Could not determine project directories");
+    let data_dir = proj_dirs.data_dir();
+    fs::create_dir_all(data_dir).expect("Could not create data directory");
+    data_dir.join("config.json")
+}
+
+fn load_config() -> Config {
+    let path = config_file_path();
+    if !path.exists() {
+        return Config::default();
+    }
+    let content = fs::read_to_string(&path).unwrap_or_default();
+    serde_json::from_str(&content).unwrap_or_default()
+}
+
+fn save_config(config: &Config) {
+    let path = config_file_path();
+    let json = serde_json::to_string_pretty(config).expect("Could not serialize config");
+    fs::write(path, json).expect("Could not write config file");
+}
+
+static GLOBAL_CONFIG: OnceLock<Config> = OnceLock::new();
+
+fn get_config() -> &'static Config {
+    GLOBAL_CONFIG.get_or_init(|| load_config())
+}
 
 // patchwork because of my poor schema planning :P
 fn deserialize_completed<'de, D>(deserializer: D) -> Result<Option<NaiveDate>, D::Error>
@@ -60,10 +206,10 @@ impl Task {
         return s;
     }
 
-    fn display(&self, opts: DisplayOpts) {
+    fn display(&self, opts: DisplayOpts, config: &Config) {
         let today = Local::now().date_naive();
         let id = if opts.show_hash {
-            format!("[{:0>6X}] ", self.get_id()).cyan()
+            format!("[{:0>6X}] ", self.get_id()).color(config.color_hash())
         } else {
             "".normal()
         };
@@ -84,14 +230,14 @@ impl Task {
                 let delta = (self.end - today).num_days();
 
                 if delta < 2 {
-                    raw_status.red()
+                    raw_status.color(config.color_overdue())
                 } else if delta < 5 {
-                    raw_status.yellow()
+                    raw_status.color(config.color_warning())
                 } else {
-                    raw_status.green()
+                    raw_status.color(config.color_safe())
                 }
             }
-            Some(_) => raw_status.blue(),
+            Some(_) => raw_status.color(config.color_completed()),
         };
 
         // enforce fixed column width
@@ -188,10 +334,10 @@ impl CalendarEvent {
         NaiveDate::parse_from_str(&self.end[..10], "%Y-%m-%d").ok()
     }
 
-    fn display(&self, opts: DisplayOpts) {
+    fn display(&self, opts: DisplayOpts, config: &Config) {
         let today = Local::now().date_naive();
         let id = if opts.show_hash {
-            format!("[{:0>6X}] ", self.get_id()).cyan()
+            format!("[{:0>6X}] ", self.get_id()).color(config.color_hash())
         } else {
             "".normal()
         };
@@ -206,13 +352,13 @@ impl CalendarEvent {
         };
 
         let status = if self.struck {
-            raw_status.blue()
+            raw_status.color(config.color_completed())
         } else if delta < 2 {
-            raw_status.red()
+            raw_status.color(config.color_overdue())
         } else if delta < 5 {
-            raw_status.yellow()
+            raw_status.color(config.color_warning())
         } else {
-            raw_status.green()
+            raw_status.color(config.color_safe())
         };
 
         let status = format!("{status:>5}");
@@ -391,17 +537,10 @@ impl<'a> DisplayItem<'a> {
         }
     }
 
-    fn display(&self, opts: DisplayOpts) {
+    fn display(&self, opts: DisplayOpts, config: &Config) {
         match self {
-            DisplayItem::Task(task) => task.display(opts),
-            DisplayItem::Calendar(event) => event.display(opts),
-        }
-    }
-
-    fn is_struck(&self) -> bool {
-        match self {
-            DisplayItem::Task(task) => task.completed.is_some(),
-            DisplayItem::Calendar(event) => event.struck,
+            DisplayItem::Task(task) => task.display(opts, config),
+            DisplayItem::Calendar(event) => event.display(opts, config),
         }
     }
 }
@@ -514,11 +653,11 @@ enum Commands {
         #[arg(long, short = 'C')]
         calendar: bool,
 
-        /// Number of days to look ahead for calendar events (default 14)
-        #[arg(long = "cal-days", default_value = "14")]
-        cal_days: i64,
+        /// Number of days to look ahead for calendar events (default: from config)
+        #[arg(long = "cal-days")]
+        cal_days: Option<i64>,
 
-        /// Filter calendar events by calendar name (comma-separated)
+        /// Filter calendar events by calendar name (comma-separated, default: from config)
         #[arg(long = "name")]
         cal_name: Option<String>,
     },
@@ -529,9 +668,9 @@ enum Commands {
     /// View upcoming calendar events
     #[command(alias = "cal")]
     Calendar {
-        /// Number of days to look ahead
-        #[arg(long, short = 'd', default_value = "14")]
-        days: i64,
+        /// Number of days to look ahead (default: from config)
+        #[arg(long, short = 'd')]
+        days: Option<i64>,
 
         #[arg(long = "no-hash")]
         no_hash: bool,
@@ -544,10 +683,38 @@ enum Commands {
         #[arg(long, short)]
         completed: bool,
 
-        /// Filter by calendar name (comma-separated)
+        /// Filter by calendar name (comma-separated, default: from config)
         #[arg(long = "name")]
         cal_name: Option<String>,
     },
+
+    /// Manage configuration
+    #[command(alias = "cfg")]
+    Config {
+        #[command(subcommand)]
+        action: ConfigAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum ConfigAction {
+    /// Show current configuration
+    Show,
+
+    /// Set a configuration value
+    Set {
+        /// Configuration key (e.g. colors.overdue, calendar.default_days)
+        key: String,
+
+        /// Value to set
+        value: String,
+    },
+
+    /// Reset configuration to defaults
+    Reset,
+
+    /// Print the path to config file
+    Path,
 }
 
 fn data_file_path() -> PathBuf {
@@ -589,6 +756,7 @@ fn save_tasks(path: &PathBuf, tasks: &mut [Task]) {
 fn main() {
     let cli = Cli::parse();
     let data_path = data_file_path();
+    let config = get_config();
 
     match cli.command {
         Commands::Add {
@@ -601,7 +769,7 @@ fn main() {
             let mut tasks = load_tasks(&data_path);
 
             let task = Task::new(title, date, autoclear);
-            task.display(DisplayOpts::default());
+            task.display(DisplayOpts::default(), config);
             tasks.push(task);
 
             save_tasks(&data_path, &mut tasks);
@@ -612,7 +780,7 @@ fn main() {
 
             if let Some(target_task) = find_task(hash.clone(), &tasks) {
                 tasks[target_task].strike();
-                tasks[target_task].display(DisplayOpts::default());
+                tasks[target_task].display(DisplayOpts::default(), config);
                 save_tasks(&data_path, &mut tasks);
                 return;
             }
@@ -620,7 +788,7 @@ fn main() {
             let mut events = load_calendar_events(90);
             if let Some(target_event) = find_calendar_event(&hash, &events) {
                 events[target_event].struck = true;
-                events[target_event].display(DisplayOpts::default());
+                events[target_event].display(DisplayOpts::default(), config);
                 let hashes: Vec<u32> = events.iter().filter(|e| e.struck).map(|e| e.hash).collect();
                 save_struck_events(&hashes);
                 return;
@@ -638,7 +806,7 @@ fn main() {
 
             if let Some(target_task) = find_task(hash.clone(), &tasks) {
                 tasks[target_task].unstrike();
-                tasks[target_task].display(DisplayOpts::default());
+                tasks[target_task].display(DisplayOpts::default(), config);
                 save_tasks(&data_path, &mut tasks);
                 return;
             }
@@ -646,7 +814,7 @@ fn main() {
             let mut events = load_calendar_events(90);
             if let Some(target_event) = find_calendar_event(&hash, &events) {
                 events[target_event].struck = false;
-                events[target_event].display(DisplayOpts::default());
+                events[target_event].display(DisplayOpts::default(), config);
                 let hashes: Vec<u32> = events.iter().filter(|e| e.struck).map(|e| e.hash).collect();
                 save_struck_events(&hashes);
                 return;
@@ -668,7 +836,7 @@ fn main() {
 
             let task = &mut tasks[target_task];
             (*task).autostrike = !task.autostrike;
-            task.display(DisplayOpts::default());
+            task.display(DisplayOpts::default(), config);
 
             save_tasks(&data_path, &mut tasks);
         }
@@ -687,7 +855,7 @@ fn main() {
                 "Task pushed to {} successfully",
                 date.format("%Y-%m-%d").to_string().green()
             );
-            tasks[target_task].display(DisplayOpts::default());
+            tasks[target_task].display(DisplayOpts::default(), config);
 
             save_tasks(&data_path, &mut tasks);
         }
@@ -700,7 +868,7 @@ fn main() {
                 None => return,
             };
 
-            tasks[target_task].display(DisplayOpts::default());
+            tasks[target_task].display(DisplayOpts::default(), config);
 
             // confirmation message if not forced
             if !force {
@@ -725,7 +893,7 @@ fn main() {
             // delete the task
             println!(
                 "Task {} successfully deleted",
-                format!("[{:0<6X}]", tasks[target_task].get_id()).cyan()
+                format!("[{:0<6X}]", tasks[target_task].get_id()).color(config.color_hash())
             );
             tasks.remove(target_task);
             save_tasks(&data_path, &mut tasks);
@@ -788,10 +956,14 @@ fn main() {
             });
 
             let calendar_events = if calendar {
+                let cal_days = cal_days.unwrap_or(config.calendar.default_days);
                 let mut events = load_calendar_events(cal_days);
 
                 if let Some(ref name_str) = cal_name {
                     let names: Vec<String> = name_str.split(',').map(|n| n.trim().to_lowercase()).collect();
+                    events.retain(|e| names.contains(&e.calendar.to_lowercase()));
+                } else if !config.calendar.default_names.is_empty() {
+                    let names: Vec<String> = config.calendar.default_names.iter().map(|n| n.to_lowercase()).collect();
                     events.retain(|e| names.contains(&e.calendar.to_lowercase()));
                 }
 
@@ -831,12 +1003,12 @@ fn main() {
 
             if total <= limit {
                 for item in &all_items {
-                    item.display(DisplayOpts::new(!no_hash, !no_flags));
+                    item.display(DisplayOpts::new(!no_hash, !no_flags), config);
                 }
             } else {
                 let shown = limit.saturating_sub(1);
                 for item in all_items.iter().take(shown) {
-                    item.display(DisplayOpts::new(!no_hash, !no_flags));
+                    item.display(DisplayOpts::new(!no_hash, !no_flags), config);
                 }
                 let remaining = total - shown;
                 println!(
@@ -863,10 +1035,14 @@ fn main() {
             completed,
             cal_name,
         } => {
+            let days = days.unwrap_or(config.calendar.default_days);
             let mut events = load_calendar_events(days);
 
             if let Some(ref name_str) = cal_name {
                 let names: Vec<String> = name_str.split(',').map(|n| n.trim().to_lowercase()).collect();
+                events.retain(|e| names.contains(&e.calendar.to_lowercase()));
+            } else if !config.calendar.default_names.is_empty() {
+                let names: Vec<String> = config.calendar.default_names.iter().map(|n| n.to_lowercase()).collect();
                 events.retain(|e| names.contains(&e.calendar.to_lowercase()));
             }
 
@@ -889,12 +1065,12 @@ fn main() {
 
             if total <= limit {
                 for event in &events {
-                    event.display(opts);
+                    event.display(opts, config);
                 }
             } else {
                 let shown = limit.saturating_sub(1);
                 for event in events.iter().take(shown) {
-                    event.display(opts);
+                    event.display(opts, config);
                 }
                 let remaining = total - shown;
                 println!(
@@ -909,6 +1085,47 @@ fn main() {
                 );
             }
         }
+
+        Commands::Config { action } => match action {
+            ConfigAction::Show => {
+                let cfg = load_config();
+                println!("{}", serde_json::to_string_pretty(&cfg).unwrap());
+            }
+
+            ConfigAction::Set { key, value } => {
+                let mut cfg = load_config();
+                match key.as_str() {
+                    "colors.overdue" => cfg.colors.overdue = value.to_string(),
+                    "colors.warning" => cfg.colors.warning = value.to_string(),
+                    "colors.safe" => cfg.colors.safe = value.to_string(),
+                    "colors.completed" => cfg.colors.completed = value.to_string(),
+                    "colors.hash" => cfg.colors.hash = value.to_string(),
+                    "calendar.default_days" => {
+                        cfg.calendar.default_days = value.parse().expect("Invalid number")
+                    }
+                    "calendar.default_names" => {
+                        cfg.calendar.default_names = value.split(',').map(|s| s.trim().to_string()).collect();
+                    }
+                    _ => {
+                        eprintln!("{}: unknown config key '{}'", "ERROR".red().bold(), key);
+                        eprintln!("Available keys: colors.overdue, colors.warning, colors.safe, colors.completed, colors.hash, calendar.default_days, calendar.default_names");
+                        return;
+                    }
+                }
+                save_config(&cfg);
+                println!("Set {} to {}", key.green(), value.green());
+            }
+
+            ConfigAction::Reset => {
+                let cfg = Config::default();
+                save_config(&cfg);
+                println!("Configuration reset to defaults");
+            }
+
+            ConfigAction::Path => {
+                println!("{}", config_file_path().display());
+            }
+        },
     }
 }
 
