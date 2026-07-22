@@ -519,7 +519,7 @@ enum Commands {
         cal_days: i64,
 
         /// Filter calendar events by calendar name
-        #[arg(long = "cal-name")]
+        #[arg(long = "name")]
         cal_name: Option<String>,
     },
 
@@ -527,6 +527,7 @@ enum Commands {
     Path,
 
     /// View upcoming calendar events
+    #[command(alias = "cal")]
     Calendar {
         /// Number of days to look ahead
         #[arg(long, short = 'd', default_value = "14")]
@@ -544,7 +545,7 @@ enum Commands {
         completed: bool,
 
         /// Filter by calendar name
-        #[arg(long = "cal-name")]
+        #[arg(long = "name")]
         cal_name: Option<String>,
     },
 }

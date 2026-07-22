@@ -111,10 +111,10 @@ swiftc calendar-reader.swift -o calendar-reader -framework EventKit
 View upcoming calendar events:
 
 ```sh
-deadline calendar             # next 14 days
-deadline calendar -d 7        # next 7 days
-deadline calendar --cal-name Work  # filter by calendar name
-deadline calendar --completed # show struck events too
+deadline calendar             # next 14 days (alias: cal)
+deadline cal -d 7             # next 7 days
+deadline cal --name Work      # filter by calendar name
+deadline cal --completed      # show struck events too
 ```
 
 Strike/unstrike calendar events using the same commands as tasks:
@@ -129,9 +129,9 @@ Calendar events display their calendar name (e.g., `[Work]`, `[Personal]`) and c
 Merge calendar events into the task view:
 
 ```sh
-deadline view --calendar           # tasks + calendar events
-deadline view -C --cal-days 7      # tasks + next 7 days of events
-deadline view -C --cal-name Work   # tasks + events from "Work" calendar
+deadline view -C              # tasks + calendar events
+deadline view -C --cal-days 7 # tasks + next 7 days of events
+deadline view -C --name Work  # tasks + events from "Work" calendar
 ```
 
 Calendar events show with a hex hash (same format as tasks) and a `(calendar)` suffix. Struck events are shown in blue with strikethrough, same as tasks.

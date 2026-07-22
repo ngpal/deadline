@@ -51,12 +51,13 @@
 # 22-07-2026
 - [x] macOS calendar integration
   - [x] Swift helper binary (calendar-reader.swift) using EventKit
-  - [x] `deadline calendar` subcommand to view upcoming events
+  - [x] `deadline calendar` subcommand to view upcoming events (alias: `cal`)
   - [x] `--calendar`/`-C` flag on `deadline view` to merge events with tasks
   - [x] deterministic hash for calendar events (title + start date)
   - [x] strike/unstrike support for calendar events via `struck_events.json`
   - [x] calendar name display (e.g. `[Work]`, `[Personal]`)
-  - [x] `--cal-name` filter for calendar and view commands
+  - [x] `--name` filter for calendar and view commands
   - [x] `--completed` flag on calendar subcommand
   - [x] graceful fallback on non-macOS with warning
-  - [x] version bump to 0.7.0
+  - [x] local timezone handling for event dates
+  - [x] version bump to 0.7.1
