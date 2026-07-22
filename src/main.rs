@@ -299,6 +299,7 @@ impl Task {
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct CalendarEvent {
     title: String,
     start: String,
@@ -314,6 +315,7 @@ struct CalendarEvent {
     struck: bool,
 }
 
+#[allow(dead_code)]
 impl CalendarEvent {
     fn compute_hash(&mut self) {
         let mut hasher = DefaultHasher::new();

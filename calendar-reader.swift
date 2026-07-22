@@ -9,18 +9,7 @@ struct CalendarEvent: Codable {
     let calendar: String
 }
 
-let group = DispatchGroup()
-let store = EKEventStore()
-
-group.enter()
-store.requestAccess(to: .event) { granted, error in
-    if !granted {
-        let errorOutput = "{\"error\": \"access denied\"}"
-        FileHandle.standardError.write(errorOutput.data(using: .utf8)!)
-        group.leave()
-        return
-    }
-
+func fetchEvents(store: EKEventStore, group: DispatchGroup) {
     let calendars = store.calendars(for: .event)
     let now = Date()
     let lookahead = CommandLine.arguments.count > 1
@@ -53,5 +42,33 @@ store.requestAccess(to: .event) { granted, error in
     }
 
     group.leave()
+}
+
+let group = DispatchGroup()
+let store = EKEventStore()
+
+group.enter()
+if #available(macOS 14.0, *) {
+    store.requestFullAccessToEvents { granted, error in
+        if !granted {
+            let errorOutput = "{\"error\": \"access denied\"}"
+            FileHandle.standardError.write(errorOutput.data(using: .utf8)!)
+            group.leave()
+            return
+        }
+
+        fetchEvents(store: store, group: group)
+    }
+} else {
+    store.requestAccess(to: .event) { granted, error in
+        if !granted {
+            let errorOutput = "{\"error\": \"access denied\"}"
+            FileHandle.standardError.write(errorOutput.data(using: .utf8)!)
+            group.leave()
+            return
+        }
+
+        fetchEvents(store: store, group: group)
+    }
 }
 group.wait()
