@@ -5,7 +5,7 @@ The idea is to have a CLI application through which you may
 - [x] Optionally autostrike completed deadlines with `-s` flag when creating the task
 - [x] Read upcoming events from your macOS calendar
 - [ ] Progress percentages you can update yourself or autoupdate with time
-- [ ] Customization on colours
+- [x] Customization on colours
 
 # Installation
 Clone the repository locally and install with cargo
@@ -139,6 +139,31 @@ deadline view -C --name Work,Personal  # multiple calendars
 Calendar events show with a hex hash (same format as tasks) and a `(calendar)` suffix. Struck events are shown in blue with strikethrough, same as tasks.
 
 > **Note:** Calendar integration requires macOS and the `calendar-reader` binary in your working directory. On other platforms, these commands print a warning and show no events. Calendar event strike state is stored locally in `struck_events.json`.
+
+## Configuration
+
+Deadline stores its configuration in `config.json` alongside the task data. Use the `config` subcommand (alias: `cfg`) to manage it.
+
+```sh
+deadline config show                        # display current config
+deadline config set colors.overdue red      # set overdue color
+deadline config set calendar.default_days 7 # default calendar look-ahead
+deadline config set calendar.default_names Work,Personal  # default calendar filter
+deadline config reset                       # reset to defaults
+deadline config path                        # show config file path
+```
+
+### Available config keys
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `colors.overdue` | `red` | Color for overdue tasks/events |
+| `colors.warning` | `yellow` | Color for tasks due within 5 days |
+| `colors.safe` | `green` | Color for tasks due later |
+| `colors.completed` | `blue` | Color for struck/completed items |
+| `colors.hash` | `cyan` | Color for task/event hashes |
+| `calendar.default_days` | `14` | Default look-ahead for calendar commands |
+| `calendar.default_names` | *(empty)* | Default calendar name filter |
 
 # Contribute
 Ideas/recommendations/bugfix requests are all welcome, contact me via <nandagopalnmenon@icloud.com> or submit an issue. Submit a PR if you're trying to contribute and I'll check it out

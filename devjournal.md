@@ -57,6 +57,13 @@
 - [x] multiple calendar name filtering
   - [x] `--name` accepts comma-separated values (e.g. `--name Work,Personal`)
   - [x] version bump to 0.7.2
+- [x] config file system
+  - [x] `Config`, `ColorConfig`, `CalendarConfig` structs with serde defaults
+  - [x] `deadline config show|set|reset|path` subcommand (alias: `cfg`)
+  - [x] configurable colors for overdue/warning/safe/completed/hash
+  - [x] configurable calendar defaults (default_days, default_names)
+  - [x] `OnceLock` singleton for config access
+  - [x] version bump to 0.8.0
 
 # Future
 
@@ -65,7 +72,3 @@
   - recurring tasks just create a new task when their deadlines are hit/struck out
   - [ ] reccuringness can be edited
   - [ ] relative (same date every month/year or so) and absolute (n days)
-
-- [ ] config file
-  - [ ] commands for editing config
-  - [ ] config for colours
