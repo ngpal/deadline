@@ -160,9 +160,26 @@ struct CalendarEvent {
     #[serde(rename = "allDay")]
     all_day: bool,
     calendar: String,
+
+    #[serde(skip)]
+    hash: u32,
+
+    #[serde(skip)]
+    struck: bool,
 }
 
 impl CalendarEvent {
+    fn compute_hash(&mut self) {
+        let mut hasher = DefaultHasher::new();
+        self.title.hash(&mut hasher);
+        self.start.hash(&mut hasher);
+        self.hash = (hasher.finish() & 0x00FFFFFF) as u32;
+    }
+
+    fn get_id(&self) -> u32 {
+        self.hash
+    }
+
     fn start_date(&self) -> Option<NaiveDate> {
         NaiveDate::parse_from_str(&self.start[..10], "%Y-%m-%d").ok()
     }
@@ -174,7 +191,7 @@ impl CalendarEvent {
     fn display(&self, opts: DisplayOpts) {
         let today = Local::now().date_naive();
         let id = if opts.show_hash {
-            format!("[CAL]    ").cyan()
+            format!("[{:0>6X}] ", self.get_id()).cyan()
         } else {
             "".normal()
         };
@@ -182,9 +199,15 @@ impl CalendarEvent {
         let start = self.start_date().unwrap_or(today);
         let delta = (start - today).num_days();
 
-        let raw_status = format!("{:>3}d", delta);
+        let raw_status = if self.struck {
+            format!("✓{:>3}d", delta)
+        } else {
+            format!("{:>3}d", delta)
+        };
 
-        let status = if delta < 2 {
+        let status = if self.struck {
+            raw_status.blue()
+        } else if delta < 2 {
             raw_status.red()
         } else if delta < 5 {
             raw_status.yellow()
@@ -194,9 +217,19 @@ impl CalendarEvent {
 
         let status = format!("{status:>5}");
 
-        let title = format!("{} (calendar)", self.title).dimmed();
+        let title_text = if self.struck {
+            format!("{} (calendar)", self.title).dimmed().strikethrough()
+        } else {
+            format!("{} (calendar)", self.title).dimmed()
+        };
 
-        println!("{id}{status}  {title}");
+        let cal_name = if opts.show_flags {
+            format!(" [{}]", self.calendar).dimmed().italic()
+        } else {
+            "".normal()
+        };
+
+        println!("{id}{status}  {title_text}{cal_name}");
     }
 }
 
@@ -235,7 +268,7 @@ fn load_calendar_events(days: i64) -> Vec<CalendarEvent> {
         .arg(days.to_string())
         .output();
 
-    match output {
+    let mut events: Vec<CalendarEvent> = match output {
         Ok(out) if out.status.success() => {
             let stdout = String::from_utf8_lossy(&out.stdout);
             serde_json::from_str(&stdout).unwrap_or_else(|e| {
@@ -264,6 +297,67 @@ fn load_calendar_events(days: i64) -> Vec<CalendarEvent> {
             );
             Vec::new()
         }
+    };
+
+    let struck_hashes = load_struck_events();
+    for event in events.iter_mut() {
+        event.compute_hash();
+        event.struck = struck_hashes.contains(&event.hash);
+    }
+
+    events
+}
+
+fn struck_events_path() -> PathBuf {
+    let proj_dirs = ProjectDirs::from("com", "nandu", "deadline")
+        .expect("Could not determine project directories");
+    let data_dir = proj_dirs.data_dir();
+    fs::create_dir_all(data_dir).expect("Could not create data directory");
+    data_dir.join("struck_events.json")
+}
+
+fn load_struck_events() -> Vec<u32> {
+    let path = struck_events_path();
+    if !path.exists() {
+        return Vec::new();
+    }
+    let content = fs::read_to_string(&path).unwrap_or_default();
+    serde_json::from_str(&content).unwrap_or_default()
+}
+
+fn save_struck_events(hashes: &[u32]) {
+    let path = struck_events_path();
+    let json = serde_json::to_string_pretty(hashes).expect("Could not serialize struck events");
+    fs::write(path, json).expect("Could not write struck events file");
+}
+
+fn find_calendar_event(hash: &str, events: &[CalendarEvent]) -> Option<usize> {
+    let mut matches = Vec::new();
+    for (i, event) in events.iter().enumerate() {
+        let id = format!("{:0>6X}", event.get_id());
+        if id.starts_with(&hash.to_uppercase()) {
+            matches.push(i);
+        }
+    }
+    match matches.len() {
+        0 => {
+            eprintln!(
+                "{}: could not find calendar event with hash '{}'",
+                "ERROR".red().bold(),
+                hash
+            );
+            None
+        }
+        1 => Some(matches[0]),
+        _ => {
+            eprintln!(
+                "{}: hash '{}' is ambiguous ({} matches)",
+                "ERROR".red().bold(),
+                hash,
+                matches.len()
+            );
+            None
+        }
     }
 }
 
@@ -286,7 +380,13 @@ impl<'a> DisplayItem<'a> {
             }
             DisplayItem::Calendar(event) => {
                 let date = event.start_date().unwrap_or(today);
-                (1, date)
+                if event.struck {
+                    (2, date)
+                } else if (date - today).num_days() < 0 {
+                    (0, date)
+                } else {
+                    (1, date)
+                }
             }
         }
     }
@@ -295,6 +395,13 @@ impl<'a> DisplayItem<'a> {
         match self {
             DisplayItem::Task(task) => task.display(opts),
             DisplayItem::Calendar(event) => event.display(opts),
+        }
+    }
+
+    fn is_struck(&self) -> bool {
+        match self {
+            DisplayItem::Task(task) => task.completed.is_some(),
+            DisplayItem::Calendar(event) => event.struck,
         }
     }
 }
@@ -410,6 +517,10 @@ enum Commands {
         /// Number of days to look ahead for calendar events (default 14)
         #[arg(long = "cal-days", default_value = "14")]
         cal_days: i64,
+
+        /// Filter calendar events by calendar name
+        #[arg(long = "cal-name")]
+        cal_name: Option<String>,
     },
 
     /// Print the path to data file
@@ -427,6 +538,14 @@ enum Commands {
         /// Number of lines to be printed
         #[arg(long, short = 'l')]
         lines: Option<usize>,
+
+        /// Show struck (completed) calendar events
+        #[arg(long, short)]
+        completed: bool,
+
+        /// Filter by calendar name
+        #[arg(long = "cal-name")]
+        cal_name: Option<String>,
     },
 }
 
@@ -488,31 +607,55 @@ fn main() {
         }
 
         Commands::Strike { hash } => {
-            // fetch tasks
             let mut tasks = load_tasks(&data_path);
 
-            let target_task = match find_task(hash, &tasks) {
-                Some(value) => value,
-                None => return,
-            };
+            if let Some(target_task) = find_task(hash.clone(), &tasks) {
+                tasks[target_task].strike();
+                tasks[target_task].display(DisplayOpts::default());
+                save_tasks(&data_path, &mut tasks);
+                return;
+            }
 
-            tasks[target_task].strike();
-            tasks[target_task].display(DisplayOpts::default());
+            let mut events = load_calendar_events(90);
+            if let Some(target_event) = find_calendar_event(&hash, &events) {
+                events[target_event].struck = true;
+                events[target_event].display(DisplayOpts::default());
+                let hashes: Vec<u32> = events.iter().filter(|e| e.struck).map(|e| e.hash).collect();
+                save_struck_events(&hashes);
+                return;
+            }
 
-            save_tasks(&data_path, &mut tasks);
+            eprintln!(
+                "{}: could not find task or calendar event with hash '{}'",
+                "ERROR".red().bold(),
+                hash
+            );
         }
 
         Commands::Unstrike { hash } => {
-            // fetch tasks
             let mut tasks = load_tasks(&data_path);
-            let target_task = match find_task(hash, &tasks) {
-                Some(value) => value,
-                None => return,
-            };
-            tasks[target_task].unstrike();
-            tasks[target_task].display(DisplayOpts::default());
 
-            save_tasks(&data_path, &mut tasks);
+            if let Some(target_task) = find_task(hash.clone(), &tasks) {
+                tasks[target_task].unstrike();
+                tasks[target_task].display(DisplayOpts::default());
+                save_tasks(&data_path, &mut tasks);
+                return;
+            }
+
+            let mut events = load_calendar_events(90);
+            if let Some(target_event) = find_calendar_event(&hash, &events) {
+                events[target_event].struck = false;
+                events[target_event].display(DisplayOpts::default());
+                let hashes: Vec<u32> = events.iter().filter(|e| e.struck).map(|e| e.hash).collect();
+                save_struck_events(&hashes);
+                return;
+            }
+
+            eprintln!(
+                "{}: could not find task or calendar event with hash '{}'",
+                "ERROR".red().bold(),
+                hash
+            );
         }
 
         Commands::Astrike { hash } => {
@@ -598,6 +741,7 @@ fn main() {
             lines: count,
             calendar,
             cal_days,
+            cal_name,
 
             #[allow(unused)] // default
             no_title,
@@ -643,7 +787,19 @@ fn main() {
             });
 
             let calendar_events = if calendar {
-                load_calendar_events(cal_days)
+                let mut events = load_calendar_events(cal_days);
+
+                if let Some(ref name) = cal_name {
+                    events.retain(|e| e.calendar.to_lowercase() == name.to_lowercase());
+                }
+
+                if !all && !completed {
+                    events.retain(|e| !e.struck);
+                } else if completed && !all {
+                    events.retain(|e| e.struck);
+                }
+
+                events
             } else {
                 Vec::new()
             };
@@ -702,8 +858,18 @@ fn main() {
             days,
             no_hash,
             lines: count,
+            completed,
+            cal_name,
         } => {
-            let events = load_calendar_events(days);
+            let mut events = load_calendar_events(days);
+
+            if let Some(ref name) = cal_name {
+                events.retain(|e| e.calendar.to_lowercase() == name.to_lowercase());
+            }
+
+            if !completed {
+                events.retain(|e| !e.struck);
+            }
 
             if events.is_empty() {
                 println!("No upcoming calendar events.");
@@ -713,19 +879,18 @@ fn main() {
             let today = Local::now().date_naive();
             let opts = DisplayOpts::new(!no_hash, true);
 
-            let mut sorted_events = events;
-            sorted_events.sort_by_key(|e| e.start_date().unwrap_or(today));
+            events.sort_by_key(|e| e.start_date().unwrap_or(today));
 
-            let total = sorted_events.len();
+            let total = events.len();
             let limit = count.unwrap_or(total);
 
             if total <= limit {
-                for event in sorted_events {
+                for event in &events {
                     event.display(opts);
                 }
             } else {
                 let shown = limit.saturating_sub(1);
-                for event in sorted_events.iter().take(shown) {
+                for event in events.iter().take(shown) {
                     event.display(opts);
                 }
                 let remaining = total - shown;
