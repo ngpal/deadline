@@ -381,6 +381,48 @@ impl CalendarEvent {
     }
 }
 
+fn calendar_data_dir() -> PathBuf {
+    let proj_dirs = ProjectDirs::from("com", "nandu", "deadline")
+        .expect("Could not determine project directories");
+    let data_dir = proj_dirs.data_dir();
+    fs::create_dir_all(data_dir).expect("Could not create data directory");
+    data_dir.to_path_buf()
+}
+
+fn ensure_calendar_reader_binary() -> Option<PathBuf> {
+    let data_dir = calendar_data_dir();
+    let binary = data_dir.join("calendar-reader");
+    if binary.exists() {
+        return Some(binary);
+    }
+
+    let source = data_dir.join("calendar-reader.swift");
+    if !source.exists() {
+        fs::write(&source, CALENDAR_READER_SWIFT).ok()?;
+    }
+
+    let status = Command::new("swiftc")
+        .arg(source.to_str()?)
+        .arg("-o")
+        .arg(binary.to_str()?)
+        .arg("-framework")
+        .arg("EventKit")
+        .status()
+        .ok()?;
+
+    if status.success() {
+        Some(binary)
+    } else {
+        eprintln!(
+            "{}: failed to compile calendar-reader from source",
+            "WARN".yellow().bold()
+        );
+        None
+    }
+}
+
+const CALENDAR_READER_SWIFT: &str = include_str!("../calendar-reader.swift");
+
 fn load_calendar_events(days: i64) -> Vec<CalendarEvent> {
     if cfg!(not(target_os = "macos")) {
         eprintln!(
@@ -390,22 +432,11 @@ fn load_calendar_events(days: i64) -> Vec<CalendarEvent> {
         return Vec::new();
     }
 
-    let binary_names = ["calendar-reader", "calendar_reader"];
-    let mut binary_path = None;
-
-    for name in &binary_names {
-        let path = PathBuf::from(format!("./{}", name));
-        if path.exists() {
-            binary_path = Some(path);
-            break;
-        }
-    }
-
-    let binary = match binary_path {
+    let binary = match ensure_calendar_reader_binary() {
         Some(p) => p,
         None => {
             eprintln!(
-                "{}: calendar-reader binary not found in current directory",
+                "{}: calendar-reader binary not found and could not be compiled",
                 "WARN".yellow().bold()
             );
             return Vec::new();
