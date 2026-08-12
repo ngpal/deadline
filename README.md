@@ -75,6 +75,19 @@ deadline view --no-hash     # hide task hashes
 deadline view -t "Title"    # print a custom title
 ```
 
+## Colors
+
+Color is on by default when stdout is a terminal and off when piped to a file or another program. Force it with the `--color` flag:
+
+```sh
+deadline --color always view | less   # keep colors when piping
+deadline --color=always view          # same, with explicit value
+deadline --color never view           # disable colors in a terminal
+deadline --color auto view            # back to auto-detection
+```
+
+`--color` is a global flag, so it works before or after the subcommand (`deadline view --color=never`). Bare `--color` (no value) means `always`. Colors remain configurable via `config set colors.*`.
+
 ## Complete / reopen tasks
 
 Mark a task as completed:

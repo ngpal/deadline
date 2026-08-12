@@ -71,6 +71,11 @@
   - [x] accept weekday full names and abbreviations (e.g. `friday`, `mon`) for `add` and `push`
   - [x] schedules for the next occurrence; same day schedules the following week
   - [x] version bump to 0.9.0
+- [x] `--color` flag to control colored output
+  - [x] `auto` (default): on for TTY, off when piped
+  - [x] `--color` / `--color=always` / `--color always` forces colors on
+  - [x] `--color=never` / `--color never` forces colors off
+  - [x] global flag, usable before or after the subcommand
 
 # Future
 
