@@ -42,6 +42,15 @@ You can also specify deadlines relative to today:
 deadline add "Finish assignment" 3d
 ```
 
+Or by the next occurrence of a weekday (full name or abbreviation):
+
+```sh
+deadline add "Pay rent" friday
+deadline add "Standup" mon
+```
+
+If the day you enter is today, the deadline is scheduled for next week.
+
 Automatically strike a task once the deadline passes:
 
 ```sh

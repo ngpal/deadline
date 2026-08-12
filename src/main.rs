@@ -1,4 +1,4 @@
-use chrono::{Local, NaiveDate};
+use chrono::{Datelike, Local, NaiveDate, Weekday};
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 use directories::ProjectDirs;
@@ -615,7 +615,7 @@ enum Commands {
         /// Title/short description of task
         title: String,
 
-        /// Deadline of the task in YYYY-MM-DD
+        /// Deadline of the task in YYYY-MM-DD, Xd, or a weekday (e.g. mon, friday)
         end: String,
 
         /// Task will be striked after deadline
@@ -646,7 +646,12 @@ enum Commands {
     },
 
     /// Push a task
-    Push { hash: String, date: String },
+    Push {
+        hash: String,
+
+        /// New deadline in YYYY-MM-DD, Xd, or a weekday (e.g. mon, friday)
+        date: String,
+    },
 
     /// Toggle autostrike for a task
     Astrike { hash: String },
@@ -1163,13 +1168,35 @@ fn main() {
 }
 
 fn parse_date(end: String) -> NaiveDate {
-    if let Some(days) = end.strip_suffix('d') {
+    if let Some(weekday) = parse_weekday(&end) {
+        let today = Local::now().date_naive();
+        let target = weekday.number_from_monday();
+        let current = today.weekday().number_from_monday();
+        let mut days_ahead = (target + 7 - current) % 7;
+        if days_ahead == 0 {
+            days_ahead = 7;
+        }
+        today + chrono::Duration::days(days_ahead as i64)
+    } else if let Some(days) = end.strip_suffix('d') {
         let days: i64 = days.parse().expect("Invalid day format. Use Xd (e.g. 3d)");
 
         Local::now().date_naive() + chrono::Duration::days(days)
     } else {
         NaiveDate::parse_from_str(&end, "%Y-%m-%d")
-            .expect("Invalid date format. Use YYYY-MM-DD or Xd")
+            .expect("Invalid date format. Use YYYY-MM-DD, Xd, or a weekday name (e.g. mon)")
+    }
+}
+
+fn parse_weekday(input: &str) -> Option<Weekday> {
+    match input.to_lowercase().as_str() {
+        "monday" | "mon" => Some(Weekday::Mon),
+        "tuesday" | "tue" | "tues" => Some(Weekday::Tue),
+        "wednesday" | "wed" => Some(Weekday::Wed),
+        "thursday" | "thu" | "thurs" => Some(Weekday::Thu),
+        "friday" | "fri" => Some(Weekday::Fri),
+        "saturday" | "sat" => Some(Weekday::Sat),
+        "sunday" | "sun" => Some(Weekday::Sun),
+        _ => None,
     }
 }
 
