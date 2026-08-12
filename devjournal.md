@@ -65,9 +65,15 @@
   - [x] `OnceLock` singleton for config access
   - [x] version bump to 0.8.0
 
+# 12-08-2026
+
+- [x] day-of-week date parsing
+  - [x] accept weekday full names and abbreviations (e.g. `friday`, `mon`) for `add` and `push`
+  - [x] schedules for the next occurrence; same day schedules the following week
+  - [x] version bump to 0.9.0
+
 # Future
 
-- [ ] better parsing allowing day of the week for deadlines
 - [ ] reccuring tasks
   - recurring tasks without autoclear show all previous tasks
   - recurring tasks just create a new task when their deadlines are hit/struck out
