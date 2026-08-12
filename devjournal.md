@@ -67,6 +67,7 @@
 
 # Future
 
+- [ ] better parsing allowing day of the week for deadlines
 - [ ] reccuring tasks
   - recurring tasks without autoclear show all previous tasks
   - recurring tasks just create a new task when their deadlines are hit/struck out
