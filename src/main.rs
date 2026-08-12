@@ -1,5 +1,5 @@
 use chrono::{Datelike, Local, NaiveDate, Weekday};
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use colored::Colorize;
 use directories::ProjectDirs;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -66,20 +66,11 @@ impl Default for CalendarConfig {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Default)]
 #[serde(default)]
 struct Config {
     colors: ColorConfig,
     calendar: CalendarConfig,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            colors: ColorConfig::default(),
-            calendar: CalendarConfig::default(),
-        }
-    }
 }
 
 impl Config {
@@ -152,7 +143,7 @@ fn save_config(config: &Config) {
 static GLOBAL_CONFIG: OnceLock<Config> = OnceLock::new();
 
 fn get_config() -> &'static Config {
-    GLOBAL_CONFIG.get_or_init(|| load_config())
+    GLOBAL_CONFIG.get_or_init(load_config)
 }
 
 // patchwork because of my poor schema planning :P
@@ -203,7 +194,7 @@ impl Task {
         };
 
         s.hash = Some(s.get_id());
-        return s;
+        s
     }
 
     fn display(&self, opts: DisplayOpts, config: &Config) {
@@ -600,10 +591,27 @@ impl DisplayOpts {
     }
 }
 
+#[derive(ValueEnum, Clone, Copy)]
+enum ColorChoice {
+    Auto,
+    Always,
+    Never,
+}
+
 #[derive(Parser)]
 #[command(name = "deadline")]
 #[command(about = "A tiny CLI deadline tracker")]
 struct Cli {
+    /// Force color output (default: auto -- on for TTY, off when piped)
+    #[arg(
+        long,
+        global = true,
+        num_args = 0..=1,
+        default_missing_value = "always",
+        value_enum
+    )]
+    color: Option<ColorChoice>,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -796,6 +804,12 @@ fn main() {
     let data_path = data_file_path();
     let config = get_config();
 
+    match cli.color {
+        Some(ColorChoice::Always) => colored::control::set_override(true),
+        Some(ColorChoice::Never) => colored::control::set_override(false),
+        Some(ColorChoice::Auto) | None => {}
+    }
+
     match cli.command {
         Commands::Add {
             title,
@@ -873,7 +887,7 @@ fn main() {
             };
 
             let task = &mut tasks[target_task];
-            (*task).autostrike = !task.autostrike;
+            task.autostrike = !task.autostrike;
             task.display(DisplayOpts::default(), config);
 
             save_tasks(&data_path, &mut tasks);
@@ -953,8 +967,8 @@ fn main() {
             #[allow(unused)] // default
             no_title,
         } => {
-            if title.is_some() {
-                println!("{}", title.unwrap().bold().underline());
+            if let Some(title) = title {
+                println!("{}", title.bold().underline());
             }
             let tasks = load_tasks(&data_path);
 
@@ -1200,7 +1214,7 @@ fn parse_weekday(input: &str) -> Option<Weekday> {
     }
 }
 
-fn find_task(hash: String, tasks: &Vec<Task>) -> Option<usize> {
+fn find_task(hash: String, tasks: &[Task]) -> Option<usize> {
     let mut matches = Vec::new();
 
     for (i, task) in tasks.iter().enumerate() {
