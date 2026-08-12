@@ -66,20 +66,11 @@ impl Default for CalendarConfig {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Default)]
 #[serde(default)]
 struct Config {
     colors: ColorConfig,
     calendar: CalendarConfig,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            colors: ColorConfig::default(),
-            calendar: CalendarConfig::default(),
-        }
-    }
 }
 
 impl Config {
@@ -152,7 +143,7 @@ fn save_config(config: &Config) {
 static GLOBAL_CONFIG: OnceLock<Config> = OnceLock::new();
 
 fn get_config() -> &'static Config {
-    GLOBAL_CONFIG.get_or_init(|| load_config())
+    GLOBAL_CONFIG.get_or_init(load_config)
 }
 
 // patchwork because of my poor schema planning :P
@@ -203,7 +194,7 @@ impl Task {
         };
 
         s.hash = Some(s.get_id());
-        return s;
+        s
     }
 
     fn display(&self, opts: DisplayOpts, config: &Config) {
@@ -896,7 +887,7 @@ fn main() {
             };
 
             let task = &mut tasks[target_task];
-            (*task).autostrike = !task.autostrike;
+            task.autostrike = !task.autostrike;
             task.display(DisplayOpts::default(), config);
 
             save_tasks(&data_path, &mut tasks);
@@ -976,8 +967,8 @@ fn main() {
             #[allow(unused)] // default
             no_title,
         } => {
-            if title.is_some() {
-                println!("{}", title.unwrap().bold().underline());
+            if let Some(title) = title {
+                println!("{}", title.bold().underline());
             }
             let tasks = load_tasks(&data_path);
 
@@ -1223,7 +1214,7 @@ fn parse_weekday(input: &str) -> Option<Weekday> {
     }
 }
 
-fn find_task(hash: String, tasks: &Vec<Task>) -> Option<usize> {
+fn find_task(hash: String, tasks: &[Task]) -> Option<usize> {
     let mut matches = Vec::new();
 
     for (i, task) in tasks.iter().enumerate() {
